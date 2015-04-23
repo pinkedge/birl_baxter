@@ -7,6 +7,11 @@ import baxter_interface
 from baxter_interface import CHECK_VERSION
 from recorded_motions import GoHome as gh
 
+def shutdown():
+    rospy.loginfo("Node has been terminated. Closing gracefully.")
+    rospy.sleep(1)
+    rs.disable()
+
 if __name__ == '__main__':
     try: 
         # If you want to debug, uncomment next line and import pdb
@@ -15,15 +20,22 @@ if __name__ == '__main__':
         # Init the ROS node
         rospy.init_node("go_home")        
 
+        # Set rospy to execute a shutdown function when exiting
+        rospy.on_shutdown(shutdown)
+
         # Enable the robot's arms
         print("Getting robot state...")
 	rs = baxter_interface.RobotEnable(CHECK_VERSION)
         init_state=rs.state().enabled
+        
         print("Enabling robot...")
         rs.enable()
 
-        gh.GoHome()
+        while not rospy.is_shutdown():
+            gh.GoHome()
+
     except:
-        rospy.loginfo("GoHome node terminated...")
+        rospy.loginfo("Exception thrown...")
         rs.disable()
     
+
