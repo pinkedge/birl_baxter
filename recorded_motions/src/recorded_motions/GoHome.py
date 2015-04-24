@@ -37,8 +37,10 @@ class GoHome():
         l_angles = l_limb.joint_angles()
 
         # Move home
+        print 'Moving home...'
         r_limb.move_to_joint_positions(r_home_angles)
         l_limb.move_to_joint_positions(l_home_angles)
+        print 'Finished moving home...'
         
         # Move arms in a series of steps from current position to homing position
         # wayPointNo=10

@@ -10,7 +10,7 @@ from recorded_motions import GoHome as gh
 def shutdown():
     rospy.loginfo("Node has been terminated. Closing gracefully.")
     rospy.sleep(1)
-    rs.disable()
+    # rs.disable()
 
 if __name__ == '__main__':
     try: 
@@ -25,14 +25,14 @@ if __name__ == '__main__':
 
         # Enable the robot's arms
         print("Getting robot state...")
-	rs = baxter_interface.RobotEnable(CHECK_VERSION)
+        rs = baxter_interface.RobotEnable(CHECK_VERSION)
         init_state=rs.state().enabled
         
         print("Enabling robot...")
         rs.enable()
 
-        while not rospy.is_shutdown():
-            gh.GoHome()
+        if not rospy.is_shutdown():
+            gh.GoHome()        
 
     except:
         rospy.loginfo("Exception thrown...")
