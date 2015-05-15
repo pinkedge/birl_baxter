@@ -81,17 +81,22 @@ from scipy import linalg, matrix
 #-----------------------------------------
 # Global Variables
 #-----------------------------------------
-## Modes
-null_space_comp = 1 # Compute the null-space and update the joint angles
-pos_mode = 1        # Compute the Jacobian using delta_p vs dp (vel)
+## IK Modes
+null_space_comp = 1 	# Compute the null-space and update the joint angles
+pos_mode        = 1 	# Compute the Jacobian using delta_p vs dp (vel)
+
+## Within Null Space, Secondary Goal Mode
+single_joint_update_mode = 0
+dq_to_ctr_mode           = 1
 
 ## Gains
-K=1              # Set gain for multiplying error with Jacobian. 1 seems to work the best
-K_null=0.001
+Kp = 1.00             	# Set gain for multiplying error with Jacobian. 1 seems to work the best
+Kv = 1.00		# Set gain for use with velocities.
+Kq = 0.01		# Set gain for use with angle errors.
 
 ## Rates
-rate=1.0          # Set a ROS Rate for the while loop at 1Hz. make it a float. If =1 same as pos_mode
-dt=1/rate   
+rate = 1.0          	# Set a ROS Rate for the while loop at 1Hz. make it a float. If =1 same as pos_mode
+dt   = 1/rate   
 #-----------------------------------------
 # Local Methods
 #-----------------------------------------
@@ -124,7 +129,7 @@ def shutdown():
 def main():
 
     # If you want to debug, uncomment the next line.
-    # pdb.set_trace()
+    #pdb.set_trace()
 
     # Initialize node
     rospy.init_node('example3_kdl')
@@ -155,9 +160,11 @@ def main():
     mid_range=[(upper_limits[i]-lower_limits[i])/2 for i in range(7)]
     q_red=matrix([upper_limits[i]-mid_range[i] for i in range(7)]).T		# This is in effect a q_dot, a velocity of joint angles. 
 
-    #B. Vector with a simple 
-    #q_red=matrix('0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0').T
-    #idx=0 # count from zero
+    # B. Vector with a simple 
+    q_red=matrix('0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0').T				# Select the joint you want to update in this 7x1 col vector
+    for i in range(len(q_red)):							# Identify the joint that is non-zero and save that index.
+         if q_red[i,0]!=0.0:
+              idx=i 								# Matrix indeces start from zero
 
     # Set a reference pose: [x,y,z,vx,vy,vz,w]. This one is near the home position of arm.
     # Home joint angle position for baxter_world_home.launch is approximately: [0.58,-0.19,0.23,-0.11,0.99,0.01,0.02]
@@ -179,12 +186,14 @@ def main():
         # 2. Compute the forward Kinematics using the Jacobian: del_p=J(q)del_q
         curr_pos=rLimb.endpoint_pose()
         curr_pos=matrix(curr_pos['position']).T
-        print 'The current position is: ' 
-        print(curr_pos)
+        print 'The current position is:\t\t The reference positions is:' 
+        for i in range(len(curr_pos)):
+             print repr(curr_pos[i,0]).rjust(10),repr(ref_pos[i,0]).rjust(40)
 
+        # Position Mode
         if pos_mode:
             # 3. Compute the error between reference and current positions
-            del_p_error=K*(ref_pos-curr_pos[0:3])
+            del_p_error=Kp*(ref_pos-curr_pos[0:3])
 
             # 4. Get a scalar distance (vector norm) to more easily interpret the error
             dp_norm=norm(del_p_error)
@@ -206,9 +215,10 @@ def main():
             #rLimb.move_to_joint_positions(ref_angles) # need to check that indeces are in the right order
             rLimb.set_joint_positions(ref_angles)
             
+        # Velocity Mode 
         else:            
             # 3. Compute the error between reference and current positions
-            del_p_error=K*(ref_pos-curr_pos[0:3])
+            del_p_error=Kv*(ref_pos-curr_pos[0:3])
             for i in range(len(del_p_error)):
                  dp[i]=del_p_error[i]/dt
                  
@@ -239,16 +249,23 @@ def main():
             jNull=matrix(null(jTrans))
             jNull_inv=matrix(pinv(jNull))
             
-            # Test to make sure that the output of the translational Jacobian (3,7) x kernel (7,4) is the zero matrix (3,4)
+            # Test to make sure that the output of the translational Jacobian(3,7) times the kernel(7,4) is the zero matrix(3,4):
             z=jTrans*jNull
-            print '\nTest to make sure that the output of the translational Jacobian (3,7) x kernel (7,4) is the zero matrix (3,4).\njTrans*jNull is: '
+            print '\nTest to make sure that the output of the translational Jacobian(3,7) times the kernel(7,4), is the zero matrix(3,4):\njTrans*jNull is: '
             print z
     
-            # 10. Compute error from center of joint range: desired - actual
-            #pdb.set_trace()
-            dq_ref=0.01*(q_red - ref_anglesM)
-            print '\nThe error vector in radians from our current angles to dq_ctr is: '
-            print(dq_ref)    
+            # 10. Compute direction of motion.
+            # If dqt_to_ctr, then compute error from center of joint range: desired - actual
+            # Scale the error so that it is appropriate for the Jacobian Null Space.
+            if dq_to_ctr_mode:
+                 dq_ref=Kq*(q_red - ref_anglesM)
+                 print '\nCenter Angles\t\t Current Angles\t\t\t Error'
+                 for i in range(len(q_red)):
+                      print repr(q_red[i,0]).rjust(7),repr(ref_anglesM[i,0]).rjust(33),repr(dq_ref[i,0]).rjust(29)
+            else:
+                 dq_ref=q_red            
+                 print '\nThe error vector in radians is:'
+                 print(dq_ref)
             
             # Compute the norm
             dq_ref_norm=norm(dq_ref)
@@ -259,18 +276,24 @@ def main():
             null_proj=jNull*jNull_inv
             
             dq_null=null_proj*dq_ref
-            print '\n dq_to_ctr projected unto the nullspace is: '
-            print(dq_null)        
+            print '\nThen, this error vector, projected unto the nullspace dq_null is:'
+            print dq_null
+            print ''
 
-            # 12. May need to scale dq_null to ensure its dimensions are similar to what they where before the projection         
-            #for i in range(len(dq_null)):
-            #     dq_null[i,0]=(dq_null[i,0]/dq_null[idx,0])*q_red[idx,0] # for loop index starts at 1 but the matrix index at 0
+            # 12. Scale dq_null.
+            # If you are only changing a single joint, the projection will modify that dimensions of that joint. 
+            # We can do a scaling mechanism to reset that specific joint value to our original goal.
+            if single_joint_update_mode:
+                 for i in range(len(dq_null)):
+                      dq_null[i,0]=(dq_null[i,0]/dq_null[idx,0])*q_red[idx,0] # for loop index starts at 1 but the matrix index at 0
 
             # 13. If norm is less than 0.00001 then add
             print 'If we multipy dq_null x Jacobian and compute the norm, it should be zero...'
             zero=norm(jTrans*dq_null)
             print(zero)
-                            
+                       
+            # 14. Only move the joints if the computed dq_null in fact gives a small (near zero) output. Otherwise
+            # do not move the joint angles. This results in a much more stable motion. 
             if zero < 0.00001:
                 ref_null_anglesM=ref_anglesM+dq_null
             
