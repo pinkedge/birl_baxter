@@ -29,7 +29,36 @@
 #-----------------------------------------
 # Overview:
 #-----------------------------------------
-# Requires the installation of baxter_PyKDL found at: http://sdk.rethinkrobotics.com/wiki/Baxter_PyKDL
+# In this program we implement a numerical approach to inverse kinematics by using the Jacobian manipulator.
+# In addition, we also make use of redundancy and the null space to achieve secondary goals in our solution.
+# So, a reference cartesian location is given to the program. The error is computed and converted into a 
+# joint angle perturbation that is added to the current joint angles. The error direction moves the joint angles
+# towards the goal position. Further, we create a secondary goal, there are many possibilities:
+# 	i) Move a single joint angle in a particular direction to avoid reaching a limit, or 
+# 	ii) Move all joints towards the center of their joint motion range. This can be done by computing those center 
+# 	positions and subtracting the current joint angles. This gives an error measure in joint angles.
+# 
+# About the Jabocian:
+# The use of the Jaobian is not always evident. It works best with certain size perturbations. If the perturbations are
+# too large the motions are uncontrolled. If the motions are too small, one may never reach the desired goal.
+#
+# About the null space and projections:
+# After calculating the null space N, we will obtain a non-square matrix. This is in-effect a set of column vectors of joint
+# angles whose linear combination will always result (when multiplied by the Jacobian) in a zero vector. 
+# This non-square matrix can be turned into a projection matrix by multiplying the the null space times its inverse 
+# (since this is not a square matrix, we multiply times the pseudo-inverse). The projection matrix can then be used to
+# project any other joint-angle column vector into the null-space. This joint-angle vector actually represents dq, a
+# joint angle velocity or perturbation. It is best represented by an error measure. If you have a desired joint angle state
+# then subtract the current joint angle state to compute an error. This error should then be scaled to a size that works 
+# well with the jacobian (otherwise it will result in an unstable motion). It is important to explicitly check to make sure
+# the update is small. If it is not, it should not be used to move the joints.
+#
+# TODO:
+# We have not yet checked for singularity conditions in the Jacobian. This can be done by studying the size of the determinant.
+# If we are reaching a singularity condition, a recovery behavior should be effected. The motion path of the robot should be modified.
+# 
+# Requirements:
+# baxter_PyKDL is needed and found at: http://sdk.rethinkrobotics.com/wiki/Baxter_PyKDL
 # Using the Jacobian to move the arm to desired pose. 
 
 #-----------------------------------------
