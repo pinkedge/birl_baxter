@@ -2,7 +2,7 @@
 <package>
   <name>face_tracker</name>
   <version>0.0.0</version>
-  <description>The demos_sysu_baxter package</description>
+  <description>The face_tracker package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->

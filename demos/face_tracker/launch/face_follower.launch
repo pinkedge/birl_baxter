@@ -44,7 +44,7 @@
 
 
 
-  <node pkg="demos_sysu_baxter" name="face_follower" type="face_follower.py" output="screen">
+  <node pkg="face_tracker" name="face_follower" type="face_follower.py" output="screen">
 
     <remap from="camera_info" to="/cameras/head_camera/camera_info" />
 
