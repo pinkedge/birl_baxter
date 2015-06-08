@@ -101,7 +101,7 @@ def move_group_python_interface_tutorial():
   ## -------------------------------------------------------
   ## Planning to a Pose goal: 
   ## -------------------------------------------------------
-  # We can plan a motion for this group to a desired pose for the end-effector. Left arm...
+  # We can plan a motion for this group to a desired pose for the end-effector. Left arm... rpy(0,0,0)->
   print "============ Generating plan 1"
   pose_target = geometry_msgs.msg.Pose()
   pose_target.orientation.w 	=  1.0
