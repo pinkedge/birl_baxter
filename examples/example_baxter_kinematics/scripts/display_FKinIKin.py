@@ -133,6 +133,7 @@ def main():
 
         print 'Joint Angles from IKins...'
         rIKin=rKin.inverse_kinematics(rPose['position'],rPose['orientation']) 
+        print rIKin
         print round(rIKin[0],4),round(rIKin[1],4),round(rIKin[2],4),round(rIKin[3],4),round(rIKin[4],4),round(rIKin[5],4),round(rIKin[6],4)
         print ''
 

@@ -109,6 +109,18 @@ target_link_libraries(minimal_publisher ${catkin_LIBRARIES})
 add_executable(minimal_subscriber src/minimal_subscriber.cpp)
 target_link_libraries(minimal_subscriber ${catkin_LIBRARIES})
 
+## build minimal_simulator
+add_executable(minimal_simulator src/minimal_simulator.cpp)
+target_link_libraries(minimal_simulator ${catkin_LIBRARIES})
+
+## build minimal_controller
+add_executable(minimal_controller src/minimal_controller.cpp)
+target_link_libraries(minimal_controller ${catkin_LIBRARIES})
+
+## build minimal_commander
+add_executable(minimal_commander src/minimal_commander.cpp)
+target_link_libraries(minimal_commander ${catkin_LIBRARIES})
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(example_minimal_nodes_node example_minimal_nodes_generate_messages_cpp)
