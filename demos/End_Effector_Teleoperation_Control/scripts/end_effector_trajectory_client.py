@@ -74,30 +74,42 @@ class Trajectory(object):
         self._goal.trajectory.joint_names = [limb + '_' + joint for joint in \
             ['s0', 's1', 'e0', 'e1', 'w0', 'w1', 'w2']]
 
+isMoving = False
+
 def callback(data):
-        print data
-        #return
-        #traj = Trajectory("right")
+        print "I recieved command..."
+        global isMoving
+        if (isMoving):
+            print "But last command isn't finished.This command will be ignored."
+            return 0
+
+        current_limb = "right"
+        if not(data.names[0].find("left") == -1):
+            current_limb = "left"
+        isMoving = True
+        #traj = Trajectory(current_limb)
         #rospy.on_shutdown(traj.stop)
         # Command Current Joint Positions first
-        limb_interface = baxter_interface.limb.Limb("right")
+        limb_interface = baxter_interface.limb.Limb(current_limb)
         current_angles = [limb_interface.joint_angle(joint) for joint in limb_interface.joint_names()]
-        goal_angles = list()
-        for i in range(0, 6):
-            goal_angles.append(current_angles[i] + data.command[i])
-        print goal_angles
-        command = dict()
-        for i in range(0, 6):
-            command[data.names[i]] = goal_angles[i]
-        print command
-        limb_interface.move_to_joint_positions(command, 2)
+        goal_angles = data.command[:]
+        joint_names = [current_limb + '_' + joint for joint in \
+            ['s0', 's1', 'e0', 'e1', 'w0', 'w1', 'w2']]
+        jointCommand = dict()
+        for i in range(0, 7):
+            jointCommand[joint_names[i]] = goal_angles[i]
+
+        limb_interface.set_joint_positions(jointCommand)
+        print jointCommand
+        isMoving = False
         return
 
-        traj.add_point(current_angles, 0.0)
-        traj.add_point(goal_angles, 1.0)
+        #traj.add_point(current_angles, 0.0)
+        traj.add_point(goal_angles, 2)
         traj.start()
-        traj.wait(2.0)
+        traj.wait(2.1)
         print("Exiting - Joint Trajectory Action Complete")
+        isMoving = False
         return 0
     
 def listener():

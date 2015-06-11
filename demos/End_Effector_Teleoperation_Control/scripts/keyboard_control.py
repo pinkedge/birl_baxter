@@ -23,6 +23,12 @@ def map_keyboard():
 	keyboard_binding["d"] = "right"
 	keyboard_binding["q"] = "backward"
 	keyboard_binding["e"] = "forward"
+	keyboard_binding["f"] = "switch limb to "
+	keyboard_binding["z"] = "orientation_x"
+	keyboard_binding[" "] = "keep"
+	limb = ["right", "left"]
+	current_limb = 0
+	print limb[current_limb] + " limb under control..."
 	while not rospy.is_shutdown():
 		c = baxter_external_devices.getch()
 		if c:
@@ -30,10 +36,16 @@ def map_keyboard():
 			if c in ['\x1b', '\x03']:
 				rospy.signal_shutdown("Finished.Exiting...")
 			elif(c in keyboard_binding.keys()):
-				print "sending command: " + keyboard_binding[c]
-				pub.publish(String(keyboard_binding[c]))
+				if (c == "f"):
+					current_limb = 1 - current_limb
+					print "control switch to " + limb[current_limb]
+					pub.publish(String(keyboard_binding[c] + limb[current_limb]))
+				else:
+					print "sending command: " + limb[current_limb] + " limb move " + keyboard_binding[c]
+					pub.publish(String(keyboard_binding[c]))
 			else:
-				print "invalid command"
+				print "invalid command: " + c
+			#print limb[current_limb] + " limb under control..."
 
 
 def main():
