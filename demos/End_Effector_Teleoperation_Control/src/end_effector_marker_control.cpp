@@ -7,16 +7,18 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/tf.h>
 
-#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <std_msgs/Header.h>
 #include <math.h>
 
 using namespace visualization_msgs;
 using namespace geometry_msgs;
+using namespace std_msgs;
 
 
 // %Tag(vars)%
 boost::shared_ptr<interactive_markers::InteractiveMarkerServer> server;
-interactive_markers::MenuHandler menu_handler;
+//interactive_markers::MenuHandler menu_handler;
 ros::Publisher pose_publisher;
 // %EndTag(vars)%
 
@@ -47,83 +49,44 @@ InteractiveMarkerControl& makeMarkerControl( InteractiveMarker &msg )
 
   return msg.controls.back();
 }
-// %EndTag(Box)%
-
-// %Tag(frameCallback)%
-void frameCallback(const ros::TimerEvent&)
-{
-  static uint32_t counter = 0;
-
-  static tf::TransformBroadcaster br;
-
-  tf::Transform t;
-
-  ros::Time time = ros::Time::now();
-
-  t.setOrigin(tf::Vector3(0.0, 0.0, sin(float(counter)/140.0) * 2.0));
-  t.setRotation(tf::Quaternion(0.0, 0.0, 0.0, 1.0));
-  br.sendTransform(tf::StampedTransform(t, time, "base_link", "moving_frame"));
-
-  t.setOrigin(tf::Vector3(0.0, 0.0, 0.0));
-  t.setRotation(tf::createQuaternionFromRPY(0.0, float(counter)/140.0, 0.0));
-  br.sendTransform(tf::StampedTransform(t, time, "base_link", "rotating_frame"));
-
-  counter++;
-}
-// %EndTag(frameCallback)%
 
 // %Tag(processFeedback)%
 void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
 {
+  static int count = 0;
   std::ostringstream s;
-  s << "Feedback from marker '" << feedback->marker_name << "' "
-      << " / control '" << feedback->control_name << "'";
-
-  std::ostringstream mouse_point_ss;
-  if( feedback->mouse_point_valid )
-  {
-    mouse_point_ss << " at " << feedback->mouse_point.x
-                   << ", " << feedback->mouse_point.y
-                   << ", " << feedback->mouse_point.z
-                   << " in frame " << feedback->header.frame_id;
-  }
+  s << "Feedback from marker " << feedback->marker_name << "  "
+      << feedback->control_name;
 
   switch ( feedback->event_type )
   {
-    case visualization_msgs::InteractiveMarkerFeedback::BUTTON_CLICK:
-      ROS_INFO_STREAM( s.str() << ": button click" << mouse_point_ss.str() << "." );
-      break;
-
-    case visualization_msgs::InteractiveMarkerFeedback::MENU_SELECT:
-      ROS_INFO_STREAM( s.str() << ": menu item " << feedback->menu_entry_id << " clicked" << mouse_point_ss.str() << "." );
-      break;
-
     case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE: {
-      /*ROS_INFO_STREAM( s.str() << ": pose changed"
-          << "\nposition = "
-          << feedback->pose.position.x
-          << ", " << feedback->pose.position.y
-          << ", " << feedback->pose.position.z
-          << "\norientation = "
-          << feedback->pose.orientation.w
-          << ", " << feedback->pose.orientation.x
-          << ", " << feedback->pose.orientation.y
-          << ", " << feedback->pose.orientation.z
-          << "\nframe: " << feedback->header.frame_id
-          << " time: " << feedback->header.stamp.sec << "sec, "
-          << feedback->header.stamp.nsec << " nsec" );*/
+      ROS_INFO_STREAM( s.str() << ": pose update." );
+      if (count++ < 10)
+        return;
+      count = 0;
+      Pose newPose(feedback->pose);
+      Header header;
+      header.frame_id = feedback->marker_name;
+      PoseStamped newPoseStamped;
+      newPoseStamped.pose = newPose;
+      newPoseStamped.header = header;
+
+      pose_publisher.publish(newPoseStamped);
       
     }
-      break;
-
-    case visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN:
-      ROS_INFO_STREAM( s.str() << ": mouse down" << mouse_point_ss.str() << "." );
-      break;
+    break;
 
     case visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP: {
-    	Pose newPose(feedback->pose);
-      	pose_publisher.publish(newPose);
-      	ROS_INFO_STREAM( s.str() << ": mouse up" << mouse_point_ss.str() << "." );
+      Pose newPose(feedback->pose);
+      Header header;
+      header.frame_id = feedback->marker_name;
+      PoseStamped newPoseStamped;
+      newPoseStamped.pose = newPose;
+      newPoseStamped.header = header;
+
+      pose_publisher.publish(newPoseStamped);
+      ROS_INFO_STREAM( s.str() << ": mouse up." );
     }
       
       break;
@@ -138,38 +101,21 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
 ////////////////////////////////////////////////////////////////////////////////////
 
 // %Tag(6DOF)%
-void make6DofMarker( bool fixed, unsigned int interaction_mode, const tf::Vector3& position, bool show_6dof )
+void make6DofMarker(std::string marker_limb, unsigned int interaction_mode, const tf::Vector3& position, bool show_6dof )
 {
   InteractiveMarker int_marker;
   int_marker.header.frame_id = "base";
   tf::pointTFToMsg(position, int_marker.pose.position);
   int_marker.scale = 0.2;
 
-  int_marker.name = "simple_6dof";
-  int_marker.description = "Simple 6-DOF Control";
+  int_marker.name = marker_limb;
+  int_marker.description = marker_limb + " marker";
 
   // insert a box
   makeMarkerControl(int_marker);
   int_marker.controls[0].interaction_mode = interaction_mode;
 
   InteractiveMarkerControl control;
-
-  if ( fixed )
-  {
-    int_marker.name += "_fixed";
-    int_marker.description += "\n(fixed orientation)";
-    control.orientation_mode = InteractiveMarkerControl::FIXED;
-  }
-
-  if (interaction_mode != visualization_msgs::InteractiveMarkerControl::NONE)
-  {
-      std::string mode_text;
-      if( interaction_mode == visualization_msgs::InteractiveMarkerControl::MOVE_3D )         mode_text = "MOVE_3D";
-      if( interaction_mode == visualization_msgs::InteractiveMarkerControl::ROTATE_3D )       mode_text = "ROTATE_3D";
-      if( interaction_mode == visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D )  mode_text = "MOVE_ROTATE_3D";
-      int_marker.name += "_" + mode_text;
-      int_marker.description = std::string("3D Control") + (show_6dof ? " + 6-DOF controls" : "") + "\n" + mode_text;
-  }
 
   if(show_6dof)
   {
@@ -209,8 +155,6 @@ void make6DofMarker( bool fixed, unsigned int interaction_mode, const tf::Vector
 
   server->insert(int_marker);
   server->setCallback(int_marker.name, &processFeedback);
-  if (interaction_mode != visualization_msgs::InteractiveMarkerControl::NONE)
-    menu_handler.apply( *server, int_marker.name );
 }
 // %EndTag(6DOF)%
 
@@ -219,24 +163,18 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "basic_controls");
   ros::NodeHandle n;
-  pose_publisher = n.advertise<geometry_msgs::Pose>("end_effector_command_position", 1);
-
-  // create a timer to update the published transforms
-  //ros::Timer frame_timer = n.createTimer(ros::Duration(0.01), frameCallback);
+  pose_publisher = n.advertise<geometry_msgs::PoseStamped>("end_effector_command_position", 1);
 
   server.reset( new interactive_markers::InteractiveMarkerServer("basic_controls","",false) );
 
   ros::Duration(0.1).sleep();
 
-  menu_handler.insert( "First Entry", &processFeedback );
-  menu_handler.insert( "Second Entry", &processFeedback );
-  interactive_markers::MenuHandler::EntryHandle sub_menu_handle = menu_handler.insert( "Submenu" );
-  menu_handler.insert( sub_menu_handle, "First Entry", &processFeedback );
-  menu_handler.insert( sub_menu_handle, "Second Entry", &processFeedback );
-
   tf::Vector3 position;
-  position = tf::Vector3( 1, 0, 0);
-  make6DofMarker( false, visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true );
+  position = tf::Vector3( 1, -1, 0);
+  make6DofMarker( "right", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true );
+
+  position = tf::Vector3( 1, 1, 0);
+  make6DofMarker( "left", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true );
 
 
   server->applyChanges();

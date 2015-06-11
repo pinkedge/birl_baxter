@@ -20,6 +20,7 @@ from std_msgs.msg import (
 )
 from geometry_msgs.msg import (
     Pose,
+    PoseStamped,
 )
 import collections
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
@@ -29,14 +30,18 @@ pub = rospy.Publisher("end_effector_command_solution", JointCommand, queue_size=
 
 def callback(data):
 	print data
-	limb = baxter_interface.Limb("right")
+	commandPose = data.pose
+	limb_name = data.header.frame_id;
+	limb = baxter_interface.Limb(limb_name)
 	currentPose = limb.endpoint_pose()
+	while not ("position" in currentPose):
+		currentPose = limb.endpoint_pose()
 	newPose = dict()
 	newPose = {
 		'position': Point(
-				data.position.x,
-				data.position.y,
-				data.position.z,
+				commandPose.position.x,
+				commandPose.position.y,
+				commandPose.position.z,
 			),
 		'orientation': Quaternion(
 				currentPose["orientation"].x,
@@ -45,7 +50,7 @@ def callback(data):
 				currentPose["orientation"].w,
 			),
 	}
-	kinematics = baxter_kinematics("right")
+	kinematics = baxter_kinematics(limb_name)
 	inverseKinematics = kinematics.inverse_kinematics(newPose["position"], newPose["orientation"])
 	print inverseKinematics
 	
@@ -60,7 +65,7 @@ def callback(data):
 		pub.publish(inverseKinematicsSolutionJointCommand)
 
 def subscribe():
-	rospy.Subscriber("end_effector_command_position", Pose, callback)
+	rospy.Subscriber("end_effector_command_position", PoseStamped, callback)
 	print "subscribing.."
 	rospy.spin();
 
