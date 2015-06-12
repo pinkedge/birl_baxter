@@ -44,10 +44,10 @@ def callback(data):
 				commandPose.position.z,
 			),
 		'orientation': Quaternion(
-				currentPose["orientation"].x,
-				currentPose["orientation"].y,
-				currentPose["orientation"].z,
-				currentPose["orientation"].w,
+				commandPose.orientation.x,
+				commandPose.orientation.y,
+				commandPose.orientation.z,
+				commandPose.orientation.w,
 			),
 	}
 	kinematics = baxter_kinematics(limb_name)
