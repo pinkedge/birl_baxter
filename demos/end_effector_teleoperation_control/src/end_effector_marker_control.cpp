@@ -86,7 +86,7 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
       newPoseStamped.header = header;
 
       pose_publisher.publish(newPoseStamped);
-      ROS_INFO_STREAM( s.str() << ": mouse up." );
+      //ROS_INFO_STREAM( s.str() << ": mouse up." );
     }
       
       break;
