@@ -77,7 +77,6 @@ class Trajectory(object):
 isMoving = False
 
 def callback(data):
-        print "I recieved command..."
         global isMoving
         if (isMoving):
             print "But last command isn't finished.This command will be ignored."
@@ -87,11 +86,8 @@ def callback(data):
         if not(data.names[0].find("left") == -1):
             current_limb = "left"
         isMoving = True
-        #traj = Trajectory(current_limb)
-        #rospy.on_shutdown(traj.stop)
-        # Command Current Joint Positions first
         limb_interface = baxter_interface.limb.Limb(current_limb)
-        current_angles = [limb_interface.joint_angle(joint) for joint in limb_interface.joint_names()]
+        
         goal_angles = data.command[:]
         joint_names = [current_limb + '_' + joint for joint in \
             ['s0', 's1', 'e0', 'e1', 'w0', 'w1', 'w2']]
@@ -100,10 +96,13 @@ def callback(data):
             jointCommand[joint_names[i]] = goal_angles[i]
 
         limb_interface.set_joint_positions(jointCommand)
-        print jointCommand
         isMoving = False
         return
 
+        #traj = Trajectory(current_limb)
+        #rospy.on_shutdown(traj.stop)
+        # Command Current Joint Positions first
+        #current_angles = [limb_interface.joint_angle(joint) for joint in limb_interface.joint_names()]
         #traj.add_point(current_angles, 0.0)
         traj.add_point(goal_angles, 2)
         traj.start()
@@ -113,13 +112,13 @@ def callback(data):
         return 0
     
 def listener():
-    print("Initializing node... ")
-    rospy.init_node('ekuri_ik_trajectory_client', anonymous=True)
+    print("Initializing node end_effector_trajectory_client... ")
+    rospy.init_node('end_effector_trajectory_client', anonymous=True)
     print("Getting robot state... ")
     rs = baxter_interface.RobotEnable(CHECK_VERSION)
     print("Enabling robot... ")
     rs.enable()
-    print("subscribing...")
+    print("end_effector_trajectory_client subscribing...")
     rospy.Subscriber("end_effector_command_solution", JointCommand, callback)
 
     # spin() simply keeps python from exiting until this node is stopped

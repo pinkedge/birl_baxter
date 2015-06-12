@@ -28,22 +28,17 @@ current_limb = "right"
 def callback(data):
 	global current_limb
 	command = data.data
-	print "I recieved command:" + command
 	if not (command.find("switch") == -1):
 		if (command.find("right") == -1):
 			current_limb = "left"
 		else:
 			current_limb = "right"
-		print "switched limb to " + current_limb
 		return
 	limb = baxter_interface.Limb(current_limb)
 	limbPose = limb.endpoint_pose()
 	while not ("position" in limbPose):
 		#print "re-getting pose"
 		limbPose = limb.endpoint_pose()
-
-	print "limb pose"
-	print limbPose
 	x = 0
 	y = 0
 	z = 0
@@ -84,8 +79,6 @@ def callback(data):
 				limbPose["orientation"].w,
 			),
 	}
-	print "new pose"
-	print newPose
 	kinematics = baxter_kinematics(current_limb)
 	inverseKinematics = kinematics.inverse_kinematics(newPose["position"], newPose["orientation"])
 	
@@ -106,12 +99,8 @@ def subscribe():
 
 
 def main():
-	print("Initializing node... ")
+	print("Initializing node control_command_subscriber... ")
 	rospy.init_node("control_command_subscriber", anonymous=True)
-
-	def clean_shutdown():
-		print("\nExiting...")
-	rospy.on_shutdown(clean_shutdown)
 
 	try:
 		subscribe()

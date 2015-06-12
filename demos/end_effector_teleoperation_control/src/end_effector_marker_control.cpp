@@ -61,7 +61,7 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
   switch ( feedback->event_type )
   {
     case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE: {
-      ROS_INFO_STREAM( s.str() << ": pose update." );
+      //ROS_INFO_STREAM( s.str() << ": pose update." );
       if (count++ < 10)
         return;
       count = 0;

@@ -29,7 +29,6 @@ Quaternion = collections.namedtuple('Quaternion', ['x', 'y', 'z', 'w'])
 pub = rospy.Publisher("end_effector_command_solution", JointCommand, queue_size=1)
 
 def callback(data):
-	print data
 	commandPose = data.pose
 	limb_name = data.header.frame_id;
 	limb = baxter_interface.Limb(limb_name)
@@ -52,7 +51,6 @@ def callback(data):
 	}
 	kinematics = baxter_kinematics(limb_name)
 	inverseKinematics = kinematics.inverse_kinematics(newPose["position"], newPose["orientation"])
-	print inverseKinematics
 	
 	if not (inverseKinematics == None):
 		inverseKinematicsSolution = list()
@@ -66,17 +64,13 @@ def callback(data):
 
 def subscribe():
 	rospy.Subscriber("end_effector_command_position", PoseStamped, callback)
-	print "subscribing.."
+	print "end_effector_command_position subscribing.."
 	rospy.spin();
 
 
 def main():
-	print("Initializing node... ")
+	print("Initializing node end_effector_command_solver... ")
 	rospy.init_node("end_effector_command_solver", anonymous=True)
-
-	def clean_shutdown():
-		print("\nExiting...")
-	rospy.on_shutdown(clean_shutdown)
 
 	try:
 		subscribe()

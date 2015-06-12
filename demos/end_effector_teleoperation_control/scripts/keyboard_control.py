@@ -49,12 +49,8 @@ def map_keyboard():
 
 
 def main():
-	print("Initializing node... ")
+	print("Initializing node keyboard_control... ")
 	rospy.init_node("keyboard_control")
-
-	def clean_shutdown():
-		print("\nExiting...")
-	rospy.on_shutdown(clean_shutdown)
 
 	try:
 		map_keyboard()
