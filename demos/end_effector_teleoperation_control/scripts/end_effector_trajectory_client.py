@@ -118,6 +118,11 @@ def listener():
     rs = baxter_interface.RobotEnable(CHECK_VERSION)
     print("Enabling robot... ")
     rs.enable()
+    print("moving to neutral... ")
+    right_arm = baxter_interface.limb.Limb("right")
+    right_arm.move_to_neutral()
+    left_arm = baxter_interface.limb.Limb("left")
+    left_arm.move_to_neutral()
     print("end_effector_trajectory_client subscribing...")
     rospy.Subscriber("end_effector_command_solution", JointCommand, callback)
 

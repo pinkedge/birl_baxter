@@ -101,11 +101,12 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
 ////////////////////////////////////////////////////////////////////////////////////
 
 // %Tag(6DOF)%
-void make6DofMarker(std::string marker_limb, unsigned int interaction_mode, const tf::Vector3& position, bool show_6dof )
+void make6DofMarker(std::string marker_limb, unsigned int interaction_mode, Pose position, bool show_6dof )
 {
   InteractiveMarker int_marker;
   int_marker.header.frame_id = "base";
-  tf::pointTFToMsg(position, int_marker.pose.position);
+  int_marker.pose = position;
+  //tf::pointTFToMsg(tf::Vector3(1, 0, 0), int_marker.pose.position);
   int_marker.scale = 0.2;
 
   int_marker.name = marker_limb;
@@ -169,11 +170,23 @@ int main(int argc, char** argv)
 
   ros::Duration(0.1).sleep();
 
-  tf::Vector3 position;
-  position = tf::Vector3( 1, -1, 0);
+  Pose position;
+  position.position.x = 0.636951734604;
+  position.position.y = -0.82861981852;
+  position.position.z = 0.194607813293;
+  position.orientation.x = 0.382227149061;
+  position.orientation.y = 0.922397993069;
+  position.orientation.z = -0.0213525715791;
+  position.orientation.w = 0.0512680854882;
   make6DofMarker( "right", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true );
 
-  position = tf::Vector3( 1, 1, 0);
+  position.position.x = 0.638507933363;
+  position.position.y = 0.826879804113;
+  position.position.z = 0.194444871259;
+  position.orientation.x = -0.381684262873;
+  position.orientation.y = 0.922633435127;
+  position.orientation.z = 0.0210780381843;
+  position.orientation.w = 0.0511896880912;
   make6DofMarker( "left", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true );
 
 
