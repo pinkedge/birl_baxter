@@ -62,12 +62,13 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
   {
     case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE: {
       //ROS_INFO_STREAM( s.str() << ": pose update." );
-      if (count++ < 10)
+      if (count++ < 5)
         return;
       count = 0;
       Pose newPose(feedback->pose);
       Header header;
       header.frame_id = feedback->marker_name;
+      header.stamp = ros::Time::now();
       PoseStamped newPoseStamped;
       newPoseStamped.pose = newPose;
       newPoseStamped.header = header;

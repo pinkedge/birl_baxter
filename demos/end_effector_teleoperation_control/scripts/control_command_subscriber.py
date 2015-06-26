@@ -18,6 +18,7 @@ from baxter_core_msgs.msg import (
 from std_msgs.msg import (
 	String,
 )
+
 import collections
 Point = collections.namedtuple('Point', ['x', 'y', 'z'])
 Quaternion = collections.namedtuple('Quaternion', ['x', 'y', 'z', 'w'])
@@ -25,8 +26,10 @@ Quaternion = collections.namedtuple('Quaternion', ['x', 'y', 'z', 'w'])
 pub = rospy.Publisher("end_effector_command_solution", JointCommand, queue_size=1)
 
 current_limb = "right"
+global_distance = 0.1
 def callback(data):
 	global current_limb
+	global global_distance
 	command = data.data
 	if not (command.find("switch") == -1):
 		if (command.find("right") == -1):
@@ -47,21 +50,35 @@ def callback(data):
 	rz = 0
 	rw = 0
 	if (command == "up"):
-		z = 0.1
+		z = global_distance
 	elif (command == "down"):
-		z = -0.1
+		z = -global_distance
 	elif (command == "left"):
-		y = 0.1
+		y = global_distance
 	elif (command == "right"):
-		y = -0.1
+		y = -global_distance
 	elif (command == "backward"):
-		x = -0.1
+		x = -global_distance
 	elif (command == "forward"):
-		x = 0.1
+		x = global_distance
 	elif (command == "orientation_x"):
-		rx = 0.1
+		rx = global_distance
 	elif (command == "keep"):
 		pass
+	elif (command == "further"):
+		if (global_distance < 0.3):
+			global_distance += 0.01
+			print global_distance
+		else:
+			print "can not increase more"
+	elif (command == "closer"):
+		if (global_distance > 0):
+			global_distance -= 0.01
+			if (global_distance < 0):
+				global_distance = 0
+			print global_distance
+		else:
+			print "can not decrease more"
 	else:
 		print "unknown command"
 		return
@@ -96,8 +113,6 @@ def subscribe():
 	rospy.Subscriber("/end_effector_command", String, callback)
 	print "subscribing.."
 	rospy.spin();
-
-
 def main():
 	print("Initializing node control_command_subscriber... ")
 	rospy.init_node("control_command_subscriber", anonymous=True)
