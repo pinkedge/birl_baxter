@@ -82,6 +82,7 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
       Pose newPose(feedback->pose);
       Header header;
       header.frame_id = feedback->marker_name;
+      header.stamp = ros::Time::now();
       PoseStamped newPoseStamped;
       newPoseStamped.pose = newPose;
       newPoseStamped.header = header;

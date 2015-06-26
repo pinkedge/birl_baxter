@@ -17,13 +17,16 @@ from baxter_core_msgs.msg import (
 )
 from std_msgs.msg import (
 	String,
+	Header,
+)
+from geometry_msgs.msg import (
+    Point,
+    Quaternion,
+    Pose,
+    PoseStamped,
 )
 
-import collections
-Point = collections.namedtuple('Point', ['x', 'y', 'z'])
-Quaternion = collections.namedtuple('Quaternion', ['x', 'y', 'z', 'w'])
-
-pub = rospy.Publisher("end_effector_command_solution", JointCommand, queue_size=1)
+pub = rospy.Publisher("end_effector_command_position", PoseStamped, queue_size=1)
 
 current_limb = "right"
 global_distance = 0.1
@@ -82,32 +85,28 @@ def callback(data):
 	else:
 		print "unknown command"
 		return
-	newPose = dict()
-	newPose = {
-		'position': Point(
+	newPose = Pose()
+	newPose.position = Point(
 				limbPose["position"].x + x,
 				limbPose["position"].y + y,
 				limbPose["position"].z + z,
-			),
-		'orientation': Quaternion(
+			)
+	newPose.orientation = Quaternion(
 				limbPose["orientation"].x + rx,
 				limbPose["orientation"].y,
 				limbPose["orientation"].z,
 				limbPose["orientation"].w,
-			),
-	}
-	kinematics = baxter_kinematics(current_limb)
-	inverseKinematics = kinematics.inverse_kinematics(newPose["position"], newPose["orientation"])
-	
-	if not (inverseKinematics == None):
-		inverseKinematicsSolution = list()
-		for num in inverseKinematics.tolist():
-			inverseKinematicsSolution.append(num)
-		inverseKinematicsSolutionJointCommand = JointCommand()
-		inverseKinematicsSolutionJointCommand.mode = 1
-		inverseKinematicsSolutionJointCommand.names = limb.joint_names()
-		inverseKinematicsSolutionJointCommand.command = inverseKinematicsSolution
-		pub.publish(inverseKinematicsSolutionJointCommand)
+			)
+
+	newHeader = Header()
+	newHeader.frame_id = current_limb
+	newHeader.stamp.secs = int(rospy.get_time())
+
+	newPoseStamp = PoseStamped()
+	newPoseStamp.pose = newPose
+	newPoseStamp.header = newHeader
+
+	pub.publish(newPoseStamp)
 
 def subscribe():
 	rospy.Subscriber("/end_effector_command", String, callback)

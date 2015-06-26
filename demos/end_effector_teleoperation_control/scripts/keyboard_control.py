@@ -31,7 +31,6 @@ def map_keyboard():
 	limb = ["right", "left"]
 	current_limb = 0
 	print limb[current_limb] + " limb under control..."
-	rate = rospy.Rate(6) #6Hz
 	while not rospy.is_shutdown():
 		c = baxter_external_devices.getch()
 		if c:
@@ -49,7 +48,6 @@ def map_keyboard():
 			else:
 				print "invalid command: " + c
 			#print limb[current_limb] + " limb under control..."
-			rate.sleep()
 
 
 def main():
