@@ -14,6 +14,7 @@
 	</group>
 
 	<group if="$(arg keyboard)">
+		<node name="end_effector_command_solver" pkg="end_effector_teleoperation_control" type="end_effector_command_solver.py" output="screen"/>
 		<node name="control_command_subscriber" pkg="end_effector_teleoperation_control" type="control_command_subscriber.py" output="screen"/>
 		<node name="keyboard_control" pkg="end_effector_teleoperation_control" type="keyboard_control.py" output="screen"/>
 	</group>

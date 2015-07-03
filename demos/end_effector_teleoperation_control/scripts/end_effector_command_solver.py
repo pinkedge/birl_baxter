@@ -29,6 +29,10 @@ Quaternion = collections.namedtuple('Quaternion', ['x', 'y', 'z', 'w'])
 pub = rospy.Publisher("end_effector_command_solution", JointCommand, queue_size=1)
 
 def callback(data):
+	time_now = rospy.get_time()
+	if (time_now - data.header.stamp.secs > 1):
+		return
+	print "accept command"
 	commandPose = data.pose
 	limb_name = data.header.frame_id;
 	limb = baxter_interface.Limb(limb_name)
@@ -51,7 +55,7 @@ def callback(data):
 	}
 	kinematics = baxter_kinematics(limb_name)
 	inverseKinematics = kinematics.inverse_kinematics(newPose["position"], newPose["orientation"])
-	
+
 	if not (inverseKinematics == None):
 		inverseKinematicsSolution = list()
 		for num in inverseKinematics.tolist():
