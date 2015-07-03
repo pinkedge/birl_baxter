@@ -1,21 +1,31 @@
 Demo Description
-    This is a demo that makes baxter to mimic the arm motion of a human.
-    It use a package, openni_tracker, to get the data of a human body, which is in fact some tf frames related to the camera.
-    Then, it translates these frames to arm angles, which are used to control the baxter.
+    This is a demo that makes baxter to mimic the arm motion of a human.It use a package, openni_tracker, to get the data of a human body, which is in fact some tf frames related to the camera.Then, it translates these frames to arm angles, which are used to control the baxter.
 
 What we need
-     baxter robot(real or in gazebo)
-     microsoft kinect
+    baxter robot(real or in gazebo)
+    microsoft kinect
 
 How to use this demo
-     We had some problems in working with the openni in the first place, 
-     which showed some errors when we tried to use openni to connect the kinect.
-  
-     Then, following the solution of BastiAB in this website:
-        https://github.com/ros-drivers/openni_tracker/issues/9#issuecomment-90533513
+    We had some problems in working with the openni in the first place, which showed some errors when we tried to use openni to connect the kinect.Then, following the solution of BastiAB in this website:
+            https://github.com/ros-drivers/openni_tracker/issues/9#issuecomment-90533513
     We make it work 
     
     Here is the steps we take to run the demo:
-        1.follow the instructions of BastiAB in https://github.com/ros-drivers/openni_tracker/issues/9#issuecomment-90533513
-        2.open a terminal, run:
-            ......(to be continued)
+        1.follow the instructions of BastiAB in 
+            https://github.com/ros-drivers/openni_tracker/issues/9#issuecomment-90533513
+        2.connect the kinect to your PC    
+        3.open a terminal, run:
+                roslaunch openni_launch openni.launch 
+          this command will use openni to connect to the kinect
+        4.open a terminal, run:
+                rosrun rviz rviz
+          when rviz is launched, choose "openni_depth_frame" in Fixed Frame, add TF to display.
+          You should see a least one skeleton of a human body now. 
+          If nothing shows, make sure some one stands in front of the kinect.
+        5.choose the index of the body you want to track in rviz.
+          open our puber code, change the value of user_index
+          open a terminal, run:
+                rosrun [package_name] [puber of the code]
+          this command will make our puber run.
+          the puber is used to receive the data of the tracked body (......to be continued)
+           
