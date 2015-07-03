@@ -1,12 +1,21 @@
-This is a brief description of this demo.
+Demo Description
+    This is a demo that makes baxter to mimic the arm motion of a human.
+    It use a package, openni_tracker, to get the data of a human body, which is in fact some tf frames related to the camera.
+    Then, it translates these frames to arm angles, which are used to control the baxter.
 
-To run this demo, you have to do a lot of preparations. (Sadly, the most important thing is that you need to have a kinect running first)
+What we need
+     baxter robot(real or in gazebo)
+     microsoft kinect
 
-1. Follow Dr.Juan's post(https://www.edmodo.com/post/421217073), make sure you did everything correct.
-2. Start the tracker by running: roslaunch rbx1_vision openni_tracker.launch
-3. Seeing the skeleton on rviz by running: rosrun rviz rviz -d `rospack find rbx1_vision`/skeleton_frames.rviz
-4. Starting you simulator by running: roslaunch baxter_gazebo baxter_world.launch
-
-Finally, you can choose one version to run. V3 is the most accuracy one(shaking a lot), V4 reduces some shaking, V5 is accuracy and smooth(recommended), V6 and V7 is still updating.
-
-(Sorry for push it so late, we were really busy these days. If you have any suggestion, please contact 769845081@qq.com or 271462243@qq.com)
+How to use this demo
+     We had some problems in working with the openni in the first place, 
+     which showed some errors when we tried to use openni to connect the kinect.
+  
+     Then, following the solution of BastiAB in this website:
+        https://github.com/ros-drivers/openni_tracker/issues/9#issuecomment-90533513
+    We make it work 
+    
+    Here is the steps we take to run the demo:
+        1.follow the instructions of BastiAB in https://github.com/ros-drivers/openni_tracker/issues/9#issuecomment-90533513
+        2.open a terminal, run:
+            ......(to be continued)
