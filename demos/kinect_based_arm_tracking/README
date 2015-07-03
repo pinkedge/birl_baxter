@@ -36,4 +36,11 @@ How to use this demo
         6.open a terminal, run:
                 rosrun [package_name] tf_listen_v8_controller
           this command will make our controller run.
-          it subscribes to the topics of smoothed data published by our puber, and controls the baxter accordingly
+          it subscribes to the topics of smoothed data published by our puber, and controls the baxter accordingly.
+        7.now move your arms in front of the kinect, and the baxter will mimic you!
+
+Demo Video Link
+    We will put a link to a video of our demo presentation soon.
+
+
+Feel free to ask or comment!(this may be a bad "read me", grammatically)
