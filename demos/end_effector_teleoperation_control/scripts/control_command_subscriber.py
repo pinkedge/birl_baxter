@@ -29,7 +29,7 @@ from geometry_msgs.msg import (
 pub = rospy.Publisher("end_effector_command_position", PoseStamped, queue_size=1)
 
 current_limb = "right"
-global_distance = 0.1
+global_distance = 0.01
 def callback(data):
 	global current_limb
 	global global_distance
@@ -70,13 +70,13 @@ def callback(data):
 		pass
 	elif (command == "further"):
 		if (global_distance < 0.3):
-			global_distance += 0.01
+			global_distance += 0.001
 			print global_distance
 		else:
 			print "can not increase more"
 	elif (command == "closer"):
 		if (global_distance > 0):
-			global_distance -= 0.01
+			global_distance -= 0.001
 			if (global_distance < 0):
 				global_distance = 0
 			print global_distance

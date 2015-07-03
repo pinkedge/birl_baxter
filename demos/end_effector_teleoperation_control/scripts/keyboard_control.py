@@ -30,6 +30,8 @@ def map_keyboard():
 	keyboard_binding["l"] = "closer"
 	limb = ["right", "left"]
 	current_limb = 0
+	command = list()
+	rate = rospy.Rate(6)
 	print limb[current_limb] + " limb under control..."
 	while not rospy.is_shutdown():
 		c = baxter_external_devices.getch()
@@ -44,10 +46,20 @@ def map_keyboard():
 					pub.publish(String(keyboard_binding[c] + limb[current_limb]))
 				else:
 					print "sending command: " + limb[current_limb] + " limb " + keyboard_binding[c]
-					pub.publish(String(keyboard_binding[c]))
+					#pub.publish(String(keyboard_binding[c]))
+					command = list()
+					for s in range(1, 11):
+						command.append(keyboard_binding[c])
 			else:
 				print "invalid command: " + c
 			#print limb[current_limb] + " limb under control..."
+
+		# new control type
+		if (len(command)):
+			pub.publish(String(command.pop()))
+			rate.sleep()
+
+
 
 
 def main():
