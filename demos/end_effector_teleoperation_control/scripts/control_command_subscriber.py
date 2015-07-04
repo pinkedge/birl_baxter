@@ -70,13 +70,13 @@ def callback(data):
 		pass
 	elif (command == "further"):
 		if (global_distance < 0.3):
-			global_distance += 0.005
+			global_distance += 0.05
 			print global_distance
 		else:
 			print "can not increase more"
 	elif (command == "closer"):
 		if (global_distance > 0):
-			global_distance -= 0.005
+			global_distance -= 0.05
 			if (global_distance < 0):
 				global_distance = 0
 			print global_distance
@@ -100,7 +100,8 @@ def callback(data):
 
 	newHeader = Header()
 	newHeader.frame_id = current_limb
-	newHeader.stamp.secs = int(rospy.get_time())
+
+	newHeader.stamp = rospy.Time().now()
 
 	newPoseStamp = PoseStamped()
 	newPoseStamp.pose = newPose

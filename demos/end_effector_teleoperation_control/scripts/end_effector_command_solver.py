@@ -29,8 +29,8 @@ Quaternion = collections.namedtuple('Quaternion', ['x', 'y', 'z', 'w'])
 pub = rospy.Publisher("end_effector_command_solution", JointCommand, queue_size=1)
 
 def callback(data):
-	time_now = rospy.get_time()
-	if (time_now - data.header.stamp.secs > 1):
+	time_now = rospy.Time().now()
+	if (time_now.secs - data.header.stamp.secs > 1 | time_now.nsecs - data.header.stamp.nsecs > 500000000):
 		return
 	print "accept command"
 	commandPose = data.pose
