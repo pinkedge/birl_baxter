@@ -48,7 +48,7 @@ def map_keyboard():
 					print "sending command: " + limb[current_limb] + " limb " + keyboard_binding[c]
 					#pub.publish(String(keyboard_binding[c]))
 					command = list()
-					for s in range(1, 11):
+					for s in range(0, 5):
 						command.append(keyboard_binding[c])
 			else:
 				print "invalid command: " + c
