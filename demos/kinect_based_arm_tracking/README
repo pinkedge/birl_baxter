@@ -17,15 +17,35 @@ How to use this demo
         3.open a terminal, run:
                 roslaunch openni_launch openni.launch 
           this command will use openni to connect to the kinect
+          
+          then, open a terminal, run:
+                rosrun openni_tracker openni_tracker 
+          this command will run the tracker code and thus generate skeletons of human bodies.
+          
         4.open a terminal, run:
                 rosrun rviz rviz
           when rviz is launched, choose "openni_depth_frame" in Fixed Frame, add TF to display.
           You should see a least one skeleton of a human body now. 
           If nothing shows, make sure some one stands in front of the kinect.
         5.choose the index of the body you want to track in rviz.
-          open our puber code, change the value of user_index
-          open a terminal, run:
-                rosrun [package_name] [puber of the code]
+          open our puber code, change the value of "user_index"
+          
+          for example:
+            we want to tract the person with 'head_1', 
+            then we change the value of "user_index" to be '1' in tf_listen_v8_puber.py
+          
+          now, open a terminal, run:
+                rosrun [package_name] tf_listen_v8_puber
           this command will make our puber run.
-          the puber is used to receive the data of the tracked body (......to be continued)
-           
+          the puber is used to receive and smooth the data of the tracked body, then publish them.
+        6.open a terminal, run:
+                rosrun [package_name] tf_listen_v8_controller
+          this command will make our controller run.
+          it subscribes to the topics of smoothed data published by our puber, and controls the baxter accordingly.
+        7.now move your arms in front of the kinect, and the baxter will mimic you!
+
+Demo Video Link
+    We will put a link to a video of our demo presentation soon.
+
+
+Feel free to ask or comment!(this may be a bad "read me", grammatically)
