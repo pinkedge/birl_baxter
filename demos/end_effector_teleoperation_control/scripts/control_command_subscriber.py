@@ -70,13 +70,13 @@ def callback(data):
 		pass
 	elif (command == "further"):
 		if (global_distance < 0.3):
-			global_distance += 0.001
+			global_distance += 0.005
 			print global_distance
 		else:
 			print "can not increase more"
 	elif (command == "closer"):
 		if (global_distance > 0):
-			global_distance -= 0.001
+			global_distance -= 0.005
 			if (global_distance < 0):
 				global_distance = 0
 			print global_distance

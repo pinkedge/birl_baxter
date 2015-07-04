@@ -10,7 +10,7 @@ How to use this demo
             https://github.com/ros-drivers/openni_tracker/issues/9#issuecomment-90533513
     We make it work 
     
-    Here is the steps we take to run the demo:
+    Here are the steps we take to run the demo:
         1.follow the instructions of BastiAB in 
             https://github.com/ros-drivers/openni_tracker/issues/9#issuecomment-90533513
         2.connect the kinect to your PC    
