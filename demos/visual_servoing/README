@@ -1,0 +1,4 @@
+#Visual Servoing Demo
+
+1. Setting the arm to be used and measure the base distance to the tabel: `$ rosrun visual_servoin_setup.py`
+2. Starting the main process: `$ rosrun visual_servoing.py`
