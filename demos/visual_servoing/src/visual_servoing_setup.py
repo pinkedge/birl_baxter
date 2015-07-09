@@ -38,7 +38,7 @@ class golf_setup():
         self.gripper.calibrate()
 
         # image directory
-        self.image_dir = os.getenv("HOME") + "/Golf/"
+        self.image_dir = os.getenv("HOME") + "/Visual_Servoing/"
 
         # start positions
         self.x     = 0.60                        # x     = front back

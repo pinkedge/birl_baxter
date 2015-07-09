@@ -62,7 +62,7 @@ roslib.load_manifest("activerobots")
 rospy.init_node("pick_and_place", anonymous = True)
 
 # directory used to save analysis images
-image_directory = os.getenv("HOME") + "/Golf/"
+image_directory = os.getenv("HOME") + "/Visual_Servoing/"
 
 # locate class
 class locate():
@@ -89,7 +89,7 @@ class locate():
         self.save_images = True
 
         # required position accuracy in metres
-        self.ball_tolerance = 0.05
+        self.ball_tolerance = 0.01
         self.tray_tolerance = 0.05
 
         # number of balls found
@@ -111,17 +111,15 @@ class locate():
 
         # camera parameters (NB. other parameters in open_camera)
         self.cam_calib    = 0.0025                     # meters per pixel at 1 meter
-        self.cam_x_offset =  0.05                       # camera gripper offset
-        self.cam_y_offset = -0.07
+        self.cam_x_offset = 0.04                       # camera gripper offset
+        self.cam_y_offset = -0.01
         self.width        = 960                        # Camera resolution
         self.height       = 600
 
         # Hough circle accumulator threshold and minimum radius.
         self.hough_accumulator = 35
-        #self.hough_min_radius  = 15
-        self.hough_min_radius = 5
-        #self.hough_max_radius  = 35
-        self.hough_max_radius  = 50
+        self.hough_min_radius  = 15
+        self.hough_max_radius  = 35
 
         # canny image
         self.canny = cv.CreateImage((self.width, self.height), 8, 1)
@@ -893,7 +891,7 @@ class locate():
     # find all the golf balls and place them in the ball tray
     def pick_and_place(self):
         n_ball = 0
-        while True and n_ball < 12:              # assume no more than 12 golf balls
+        while True and n_ball < 100:              # assume no more than 12 golf balls
             n_ball          += 1
             iteration        = 0
             angle            = 0.0
@@ -909,7 +907,7 @@ class locate():
 
             # iterate to find next golf ball
             # if hunting to and fro accept error in position
-            while error > self.ball_tolerance and iteration < 10:
+            while error > self.ball_tolerance and iteration < 100:
                 iteration               += 1
                 next_ball, angle, error  = self.golf_ball_iterate(n_ball, iteration, next_ball)
 
@@ -923,7 +921,7 @@ class locate():
             print "DROPPING BALL ANGLE =", angle * (math.pi / 180)
             if angle != self.yaw:             # if neighbouring ball
                 pose = (self.pose[0],         # rotate gripper to avoid hitting neighbour
-                        self.pose[1],
+                        self.pose[1] - 0.02,
                         self.pose[2],
                         self.pose[3],
                         self.pose[4],
@@ -940,9 +938,18 @@ class locate():
             # self.pose[2] - (distance from the setup file）
             # - distance（infrared sensor to the desk） + 0.14（infrared sensor to the grippers）
             # move down to pick up ball
-            pose = (self.pose[0] + self.cam_x_offset,
-                    self.pose[1] + self.cam_y_offset,
-                    self.pose[2] - 0.15 - self.distance + 0.18,  
+            pose = (self.pose[0] + 0.0,
+                    self.pose[1] - 0.01,
+                    self.pose[2],  
+                    self.pose[3],
+                    self.pose[4],
+                    angle)
+            self.baxter_ik_move(self.limb, pose)
+            self.print_arm_pose()
+
+            pose = (self.pose[0],
+                    self.pose[1],
+                    self.pose[2] - 0.15 - self.distance + 0.19,  
                     self.pose[3],
                     self.pose[4],
                     angle)
