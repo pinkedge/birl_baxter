@@ -3,19 +3,28 @@ project(dq_robotics)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz) is used, also find other catkin packages
-find_package(catkin REQUIRED Eigen COMPONENTS
+##find_package(catkin REQUIRED Eigen COMPONENTS
+##  roscpp
+##  rospy  
+##  std_msgs
+##  message_generation
+##)
+
+find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy  
   std_msgs
   message_generation
 )
 
+find_package(cmake_modules REQUIRED)
+find_package(Eigen REQUIRED)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-   FILES
-   # dqmsg_poses.msg
-)
+##add_message_files(
+##   FILES
+##   # dqmsg_poses.msg
+##)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -71,6 +80,7 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN_INCLUDE_DIRS}
 )
 
 
