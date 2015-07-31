@@ -12,7 +12,6 @@ BAXTER DQ Control Example with joint limits consideration in control loop.
 
 
 
-
 //**** Setting robot to tracking mode ***
 bool baxterdqcontrol::srvcallback_setctrl_idle(std_srvs::Empty::Request &request, std_srvs::Empty::Response &response)
 {	
@@ -41,9 +40,47 @@ bool baxterdqcontrol::srvcallback_setctrl_tracking(std_srvs::Empty::Request &req
 
 
 
+
+
+
+//********************
+void baxterdqcontrol::callbackInput_leftbutton_itb(const baxter_core_msgs::ITBState& button_state)
+{
+    if (button_state.buttons[0]==1)
+	{		
+	    std::cout<< "callbackInput_leftbutton_itb"<<std::endl;
+		if (switching_time_button_left)
+			std::cout << ".";
+		else
+		{
+			std::cout << " receiving data from left button" << std::endl;
+			if ( (FLAG_CONTROLLER_OPTION == 3) && (switching_time_button_left==false) )
+			{
+				FLAG_CONTROLLER_OPTION = 0;
+				std::cout << std::endl << "======> [CONTROL]:[IDLE] Controller set to idle mode. Watch gravity making its thing!" << std::endl;
+			}
+			else
+			{
+				if ( (FLAG_CONTROLLER_OPTION == 0) && (switching_time_button_left==false) )
+				{
+					FLAG_CONTROLLER_OPTION = 2;
+					std::cout << std::endl << "======> [CONTROL]: Getting data from reference baxter arm and defining relative pose." << std::endl;					
+				}
+			}
+			switching_time_button_left = true;
+            
+		}
+	}
+	/*
+	else
+		switching_time_button_left = false;*/
+
+}
+
 //************* new
 void baxterdqcontrol::callbackInput_leftbutton(const baxter_core_msgs::DigitalIOState& button_state)
 {	
+/*
 	if (button_state.state==1)
 	{		
 		if (switching_time_button_left)
@@ -65,11 +102,12 @@ void baxterdqcontrol::callbackInput_leftbutton(const baxter_core_msgs::DigitalIO
 				}
 			}
 			switching_time_button_left = true;
-
+            
 		}
 	}
 	else
 		switching_time_button_left = false;
+		*/
 }
 
 void baxterdqcontrol::callbackInput_rightbutton(const baxter_core_msgs::DigitalIOState& button_state)
@@ -294,8 +332,15 @@ Matrix<double,7,1> relative_newinputjoints;
 
 	//======================[ Control Loop ]============================
 	while (ros::ok())
-	{   		
-		++loopit; 		
+	{   	
+		++loopit; 
+		if (loopit%(int)ctrlvar_time__dnum_CONTROL_FREQ==0)
+		{
+		    controller.set_control_gains(1*ctrlvar_pid__gain_kp*ctrlvar_pid__Mat8x8_kp, ctrlvar_pid__gain_ki*ctrlvar_pid__Mat8x8_kp, 0.99, ctrlvar_pid__gain_kd*ctrlvar_pid__Mat8x8_kp);		
+		    ROS_INFO("Reset PID: Kp: %f  Ki:  %f Kd:  %f  frequence:  %f", 
+            ctrlvar_pid__gain_kp, ctrlvar_pid__gain_ki, 
+            ctrlvar_pid__gain_kd,ctrlvar_time__dnum_CONTROL_FREQ);
+		 }
 		//========================[ Check Poses  ]======================
 		dqvar_dq_refxm = get_endeffector(baxter_ros->right_joints, false);
 		dqvar_dq_xm = get_endeffector(baxter_ros->left_joints, true);
@@ -322,7 +367,10 @@ Matrix<double,7,1> relative_newinputjoints;
 		if (FLAG_CONTROLLER_OPTION == 2) {
 			FLAG_CONTROLLER_OPTION = 3;				
 			if (getConstantRelativePose(baxter_ros->right_joints))
+			{ // 获取两只手的相对关系.dqvar_dq_ref_initpose
 				std::cout  << "======> [CONTROL]: Controller set to track reference Arm." << std::endl;		
+				std::cout << "the first dqvar_dq_ref_initpose is " << dqvar_dq_ref_initpose << std::endl;
+			}
 			else {
 				FLAG_CONTROLLER_OPTION = 0;
 				std::cout  << "======> [CONTROL]:[Warning] Could not make track reference Arm work." << std::endl  << "======> [CONTROL]: Controller set to idle. Arm will hold pose" << std::endl;					
@@ -364,7 +412,7 @@ Matrix<double,7,1> relative_newinputjoints;
 			}
 			
 
-
+ 
 			// **** OBTAIN CONTROL OUTPUT **** 
 			if (enable_fixed_joint_test)
 				ctrlvar_joints__Mat7x1_output =  controller.getNewJointPositions(dqvar_dq_xd, relative_newinputjoints,1.0);
@@ -377,6 +425,26 @@ Matrix<double,7,1> relative_newinputjoints;
 				ctrlvar_joints__Mat7x1_output(6,0) = relativeinitjoint_main + (relativenewjoint - constlastjoint);
 				std::cout << " ===>  des: " << ctrlvar_joints__Mat7x1_output(6,0) << " x " << oldteste <<  "   xxxxx cur: " << baxter_ros->left_joints(6,0)  << std::endl; 
 			}
+			// if meet joint limit,not move;
+			//*
+			if (controller.var_Meet_Joint_Limit)
+			{
+			    std::cout << "meet joint limit"<< std::endl;
+			    loop_rate.sleep();	
+			    controller.var_Meet_Joint_Limit=false;
+			    continue;
+			}
+			//*/
+			if (FLAG_CONTROLLER_OPTION == 3){
+			std::cout<<"the enable_fixed_joint_test is : " << enable_fixed_joint_test << std:: endl;
+			std::cout<<"FLAG_CONTROLLER_OPTION is : " << FLAG_CONTROLLER_OPTION << std::endl;
+			std::cout << "FLAG_TRACK_ONLY_POSITION is :" << FLAG_TRACK_ONLY_POSITION << std::endl;
+			std::cout << "dqvar_dq_xd is :" << dqvar_dq_xd << std::endl;
+			std::cout << "dqvar_dq_refxm is: " << dqvar_dq_refxm << std::endl;
+			std::cout << "dqvar_dq_ref_initpose is: " << dqvar_dq_ref_initpose<< std::endl;
+			std::cout << "dqvar_dq_refxm is: " << dqvar_dq_refxm << std::endl;
+			std::cout << std::endl << std::endl;
+			}
 			baxter_ros->publish_left_joints(ctrlvar_joints__Mat7x1_output);
 		}
 
@@ -387,6 +455,7 @@ Matrix<double,7,1> relative_newinputjoints;
 		// }
 		// Sleep for the remaining time to let us hit our 10hz publishing rate
 		loop_rate.sleep();	
+		
 
 	} // END-OF-WHILE
 	//==========================================================================
@@ -543,7 +612,10 @@ void baxterdqcontrol::init_ROS_Config()
 //**********[  Controlling the buttons ]		
 		rosvar_sub__get_left_button = rosnode.subscribe("/robot/digital_io/left_itb_button0/state",1000,&baxterdqcontrol::callbackInput_leftbutton, this);
 		rosvar_sub__get_right_button = rosnode.subscribe("/robot/digital_io/right_itb_button0/state",1000,&baxterdqcontrol::callbackInput_rightbutton, this);
-
+        
+        rosvar_sub__get_left_button_itb = rosnode.subscribe("/robot/itb/left_itb/state",1000,&baxterdqcontrol::callbackInput_leftbutton_itb, this);
+        
+        
 	rosvar_subs__get_ref_pose = rosnode.subscribe("/baxter_dqcontrol/left/control/pose",1000,&baxterdqcontrol::callbackInputReferencePose, this);
 	rosvar_subs__get_ref_position = rosnode.subscribe("/baxter_dqcontrol/left/control/position",1000,&baxterdqcontrol::callbackInputReferencePosition,this);
 	rosvar_subs__get_ref_position_appended = rosnode.subscribe("/baxter_dqcontrol/left/control/add_translation",1000,&baxterdqcontrol::callbackInputReferencePosition_append,this);
@@ -552,9 +624,14 @@ void baxterdqcontrol::init_ROS_Config()
 	rossrv_changeCtrl_idle     = rosnode.advertiseService("/baxter_dqcontrol/set_control/idle", &baxterdqcontrol::srvcallback_setctrl_idle,this);
 	rossrv_changeCtrl_setpoint = rosnode.advertiseService("/baxter_dqcontrol/set_control/point", &baxterdqcontrol::srvcallback_setctrl_setpoint,this);
 	rossrv_changeCtrl_tracking = rosnode.advertiseService("/baxter_dqcontrol/set_control/track", &baxterdqcontrol::srvcallback_setctrl_tracking,this);	
+	
+	
+	
 
 	// Initialize msg variables		
 	rosmsg_printerror.data = " ";
+	
+	
 }
 
 
@@ -639,19 +716,20 @@ DQ baxterdqcontrol::get_endeffector(const Matrix<double,7,1>& joints, bool main_
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+//*** dynamic reconfigure callback ***
+void dynamiccallback(dq_robotics::dqdynamicConfig &config, uint32_t level, baxterdqcontrol *baxter) {
+  ROS_INFO("Reset PID: start： %d  Kp: %f  Ki:  %f Kd:  %f  frequence:  %f", 
+            config.start_param,config.kp_param, config.ki_param, 
+            config.kd_param,config.frequence_param);
+  FLAG_CONTROLLER_OPTION=config.start_param;
+  baxter->ctrlvar_pid__gain_kp=config.kp_param; 
+  baxter->ctrlvar_pid__gain_ki=config.ki_param;
+  baxter->ctrlvar_pid__gain_kd=config.kd_param;
+  baxter->ctrlvar_time__dnum_CONTROL_FREQ =config.frequence_param;
+  ros::Rate loop_rate(config.frequence_param);
+  //baxter->controller.set_control_gains(1*baxter->ctrlvar_pid__gain_kp*baxter->ctrlvar_pid__Mat8x8_kp, baxter->ctrlvar_pid__gain_ki*baxter->ctrlvar_pid__Mat8x8_kp, 0.99, baxter->ctrlvar_pid__gain_kd*baxter->ctrlvar_pid__Mat8x8_kp);
+            
+}
 
 
 int main(int argc, char **argv)
@@ -667,6 +745,14 @@ int main(int argc, char **argv)
     dqbaxterarm_instance.init_setConstantValues(baxter_ros_init);	
 	dqbaxterarm_instance.init_ROS_Config();
 	dqbaxterarm_instance.init_ROBOT_ARM_CONFIG();	
+	
+	//start dynamic reconfigure
+	std::cout << "start dynami reconfigure" << std::endl;
+	
+	dynamic_reconfigure::Server<dq_robotics::dqdynamicConfig> server;
+    dynamic_reconfigure::Server<dq_robotics::dqdynamicConfig>::CallbackType f;
+    f=boost::bind(&dynamiccallback, _1,_2,&dqbaxterarm_instance);
+    server.setCallback(f);
 
 	ros::AsyncSpinner spinner(4);
 	spinner.start();

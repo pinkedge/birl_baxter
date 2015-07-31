@@ -264,8 +264,8 @@ VectorXd Controller_Generic::getNewJointVelocities( const DQ reference, const Ve
     
     mtemp8 = pose_reference.vec8();
     pose_reference = pose_reference*(pose_reference.norm().inv());
-    pose_Xd = DQ( mtemp8(0,0), mtemp8(1,0), mtemp8(2,0), mtemp8(3,0), 0, 0, 0,0);    
-    mtemp8 = pose_reference.translation().vec8();
+    pose_Xd = DQ( mtemp8(0,0), mtemp8(1,0), mtemp8(2,0), mtemp8(3,0), 0, 0, 0,0);    //change rotation‘s quaternion in to vet8
+    mtemp8 = pose_reference.translation().vec8();//get translation's quaternion
     pose_Xd =  pose_Xd + POS_GAIN*0.5*E_*DQ( 0, mtemp8(1,0), mtemp8(2,0), mtemp8(3,0), 0, 0, 0,0 )*pose_Xd;
 
     
@@ -540,12 +540,16 @@ VectorXd Controller_Generic::getNewJointVelocities( const DQ reference, const Ve
                 varPSEUDO_ROBOT.thetas(j) = var_task_thetas(i);
                 ++j;      
             }
+            //var_Meet_Joint_Limit=false;
         }
         //If joint was marked to be ignored, it shall be ignored.
         else{
             var_task_thetas_Delta(i) = 0;
             if (var_FLAG_DEBUG__MODE_JOINTLIMIT_VERIF)
+            {
                 std::cout << "[WARN]: Ignore move in Joint (" << i <<") due to joint limits" << std::endl;
+                var_Meet_Joint_Limit=true;
+            }
         }
 
     }

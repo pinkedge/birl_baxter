@@ -29,10 +29,12 @@ class Controller_Generic: public DQ_controller
 
 //**************************[ Param ]***********
 public: 
+    bool var_Meet_Joint_Limit;
+
 private: 
 
     //** DEBUG MODE
-    bool var_FLAG_DEBUG__MODE_JOINTLIMIT_VERIF;
+    bool var_FLAG_DEBUG__MODE_JOINTLIMIT_VERIF;     
 
     //** Constant variables
     DQ       var_const_DQ_1;

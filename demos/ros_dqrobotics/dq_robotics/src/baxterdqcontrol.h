@@ -27,6 +27,7 @@ BAXTER Control Example with joint limits consideration in control loop.
 #include "../include/dq_robotics/robot_dh/BaxterArm.h"
 
 #include "baxter_core_msgs/DigitalIOState.h"
+#include "baxter_core_msgs/ITBState.h"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Point.h" 
 #include "std_msgs/String.h"
@@ -36,6 +37,9 @@ BAXTER Control Example with joint limits consideration in control loop.
 #include <vector>
 #include <math.h> 
 #include <string.h> 
+#include <dynamic_reconfigure/server.h>
+#include "dq_robotics/dqdynamicConfig.h"
+
 
 #include "baxter_communication.h"
 
@@ -60,7 +64,7 @@ public:
 private:
 
 	// new ones
-	ros::Subscriber  rosvar_sub__get_left_button, rosvar_sub__get_right_button;
+	ros::Subscriber  rosvar_sub__get_left_button, rosvar_sub__get_right_button, rosvar_sub__get_left_button_itb;
 	bool switching_time_button_left, switching_time_button_right;
 	baxter_comm  *baxter_ros;
 	double constlastjoint;
@@ -116,14 +120,14 @@ private:
 	
 	//*********  CONTROLLER DATA *************	
 	int ctrlvar_robotnumberofdof;			
-	double ctrlvar_pid__gain_kp, ctrlvar_pid__gain_ki, ctrlvar_pid__gain_kd;
+	
 	Matrix<double,8,8> ctrlvar_pid__Mat8x8_kp; 			
 	Matrix<double,7,1> ctrlvar_joints__Mat7x1_output; 	
 	// float ctrlvar_joints__fvec7_SpeedLimits[7];
 	// 
 	int ctrlvar_counter__ctrl_step;		// Discrete controller iteration counter
 	double ctrlvar_norm__dnum_threshold;	// Pre-defined threshold for control error
-	double ctrlvar_time__dnum_CONTROL_FREQ;
+	
 
 
 	//*********  ROBOT ARM DATA *************	
@@ -132,9 +136,13 @@ private:
 	Matrix<double,7,1> ctrlvar_joints__Mat7x1_LIMITS_UPPER;
 	Matrix<double,7,1> ctrlvar_joints__Mat7x1_LIMITS_LOWER;  
 
+    
 
 public:
-
+    //Controller_Generic controller;
+    
+    double ctrlvar_pid__gain_kp, ctrlvar_pid__gain_ki, ctrlvar_pid__gain_kd;
+    double ctrlvar_time__dnum_CONTROL_FREQ;
 	bool srvcallback_setctrl_idle(std_srvs::Empty::Request &request, std_srvs::Empty::Response &response);
 	bool srvcallback_setctrl_setpoint(std_srvs::Empty::Request &request, std_srvs::Empty::Response &response);
 	bool srvcallback_setctrl_tracking(std_srvs::Empty::Request& request, std_srvs::Empty::Response &response);
@@ -145,7 +153,8 @@ public:
 
 	void callbackInput_leftbutton(const baxter_core_msgs::DigitalIOState& button_state);
 	void callbackInput_rightbutton(const baxter_core_msgs::DigitalIOState& button_state);
-
+	void callbackInput_leftbutton_itb(const baxter_core_msgs::ITBState& button_state);
+    //void dynamiccallback(dq_robotics::dqdynamicConfig &config, uint32_t level);
 	// 
 	void callbackInputReferencePose(const geometry_msgs::Pose& inputREF);
 	void callbackInputReferencePosition(const geometry_msgs::Point& inputREF);
@@ -161,7 +170,6 @@ public:
 	void publishinformation(DQ dq_state, bool printed);
 	void publishinformation_ref(DQ dq_state, bool printed);
 	void publishinfo_error();
-	
 	void init_setConstantValues(baxter_comm &baxtercommunication_data){
 		constlastjoint=0;
 		relativeinitjoint_main =0;
@@ -211,6 +219,7 @@ public:
 		FLAG_PUBLISH_INFO_DQ = true;
 		// Print errors and dq pose information
 		FLAG__PRINT_DEBUG_INFORMATION =  true;
+		switching_time_button_left=false;
 
 	}
 
