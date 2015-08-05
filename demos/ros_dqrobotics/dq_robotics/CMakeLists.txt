@@ -3,19 +3,22 @@ project(dq_robotics)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz) is used, also find other catkin packages
-find_package(catkin REQUIRED Eigen COMPONENTS
+find_package(catkin  REQUIRED  COMPONENTS 
   roscpp
   rospy  
   std_msgs
   message_generation
+  dynamic_reconfigure
 )
+find_package (cmake_modules REQUIRED)
+find_package(Eigen REQUIRED)
 
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-   FILES
-   # dqmsg_poses.msg
-)
+#add_message_files(
+   #FILES
+#    dqmsg_poses.msg
+#)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -36,7 +39,11 @@ generate_messages(
 )
 # generate_messages()
 
-
+#find_package(catkin REQUIRED dynamic_reconfigure)
+generate_dynamic_reconfigure_options(
+  cfg/dqdynamic.cfg
+  #...
+)
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -55,6 +62,7 @@ catkin_package(
     rospy
     trajectory_msgs
     message_runtime
+    dynamic_reconfigure
 )
 
 
@@ -71,6 +79,7 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN_INCLUDE_DIRS}
 )
 
 
@@ -84,13 +93,17 @@ set(SOURCE_FILES_CONTROLLERS ${SOURCE_FILES_CONTROLLERS} ${SOURCE_PATH}/controll
 
 set(SOURCE_FILES ${SOURCE_PATH}/DQ.cpp ${SOURCE_PATH}/DQ_kinematics.cpp ${SOURCE_PATH}/DQ_CDTS.cpp ${SOURCE_FILES_CONTROLLERS})
 
+include_directories(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake) 
 ## Declare a cpp library:
 add_library(${PROJECT_NAME} ${SOURCE_FILES}) 
 
 ## Declare a cpp executable:
 #***************************
 add_executable(baxter_dq_control src/baxterdqcontrol.cpp ${SOURCE_FILES} src/baxter_communication.cpp)  
+#add_executable(baxter_dq_control src/dynamic_tutorials.cpp)
 #***************************
+
+add_dependencies(baxter_dq_control ${PROJECT_NAME}_gencfg)
 
 
 
