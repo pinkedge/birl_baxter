@@ -3,7 +3,7 @@
 ## About
 To know what this pakage is, pleased refer to the wiki of this package:
 
-https://github.com/birlrobotics/birl_baxter/wiki/Collaborative_Manipulation_en
+https://github.com/birlrobotics/birl_baxter/wiki/end_effector_teleoperation_control_en
 
 
 ## Build and Run
@@ -29,4 +29,4 @@ Simply run 'catkin_make' under root directory of workspace that contain this pac
 ### Run
 Pleased refer to the wiki of this package:
 
-https://github.com/birlrobotics/birl_baxter/wiki/Collaborative_Manipulation_en
+https://github.com/birlrobotics/birl_baxter/wiki/end_effector_teleoperation_control_en
