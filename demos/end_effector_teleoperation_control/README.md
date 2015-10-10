@@ -10,18 +10,18 @@ https://github.com/birlrobotics/birl_baxter/wiki/Collaborative_Manipulation_en
 
 ### Environment
 To successfully build this package, the following library of C++ is required:
-1. libstdc++
-2. liblapack
-3. librt
+* libstdc++
+* liblapack
+* librt
 
 ### Denpendency
 The following package of ROS is required:
-1. roscpp
-2. rospy
-3. tf
-4. geometry_msgs
-5. visualization_msgs
-6. interactive_markers
+* roscpp
+* rospy
+* tf
+* geometry_msgs
+* visualization_msgs
+* interactive_markers
 
 ### Build Package
 Simply run 'catkin_make' under root directory of workspace that contain this package
