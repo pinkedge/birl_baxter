@@ -2,9 +2,7 @@
 #include <ros/ros.h>
 
 #include <interactive_markers/interactive_marker_server.h>
-#include <interactive_markers/menu_handler.h>
 
-#include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 #include <tf/tf.h>
 
@@ -176,11 +174,11 @@ int main(int argc, char** argv)
       ros::Duration(1.0).sleep();
       continue;
     }
-    Pose leftPose;
-    tf::pointTFToMsg(transform.getOrigin(), leftPose.position);
-    tf::quaternionTFToMsg(transform.getRotation(), leftPose.orientation);
+    Pose rightPose;
+    tf::pointTFToMsg(transform.getOrigin(), rightPose.position);
+    tf::quaternionTFToMsg(transform.getRotation(), rightPose.orientation);
     make6DofMarker( "right", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D,
-      leftPose, true);
+      rightPose, true);
     break;
   }
   ROS_INFO_STREAM("Initialized right marker");
@@ -203,16 +201,6 @@ int main(int argc, char** argv)
   }
 
   ROS_INFO_STREAM("Initialized left marker");
-
-  /*position.position.x = 0.638507933363;
-  position.position.y = 0.826879804113;
-  position.position.z = 0.194444871259;
-  position.orientation.x = -0.381684262873;
-  position.orientation.y = 0.922633435127;
-  position.orientation.z = 0.0210780381843;
-  position.orientation.w = 0.0511896880912;
-  make6DofMarker( "left", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true );*/
-
 
   server->applyChanges();
 

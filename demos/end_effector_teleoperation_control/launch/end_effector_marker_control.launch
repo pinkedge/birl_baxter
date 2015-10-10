@@ -21,6 +21,8 @@
     <group if="$(arg ikfast_marker)">
         <node name="end_effector_marker_control_ikfast" pkg="end_effector_teleoperation_control" type="end_effector_marker_control_ikfast" output="screen"/>
         <node name="end_effector_command_solver_ikfast" pkg="end_effector_teleoperation_control" type="end_effector_command_solver_ikfast" output="screen"/>
+        <node name="end_effector_command_solver_ikfast_right" pkg="end_effector_teleoperation_control" type="end_effector_command_solver_ikfast_right" output="screen"/>
+        <node name="end_effector_command_solver_ikfast_left" pkg="end_effector_teleoperation_control" type="end_effector_command_solver_ikfast_left" output="screen"/>
         <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find end_effector_teleoperation_control)/marker.rviz"/>
     </group>
 

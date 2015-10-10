@@ -32,7 +32,7 @@ def callback(data):
 	time_now = rospy.Time().now()
 	if (time_now.secs - data.header.stamp.secs > 1 | time_now.nsecs - data.header.stamp.nsecs > 500000000):
 		return
-	print "accept command"
+
 	commandPose = data.pose
 	limb_name = data.header.frame_id;
 	limb = baxter_interface.Limb(limb_name)
@@ -68,19 +68,18 @@ def callback(data):
 
 def subscribe():
 	rospy.Subscriber("end_effector_command_position", PoseStamped, callback)
-	print "end_effector_command_position subscribing.."
+	rospy.loginfo("end_effector_command_position subscribing...")
 	rospy.spin();
 
 
 def main():
-	print("Initializing node end_effector_command_solver... ")
+	rospy.loginfo("Initializing node end_effector_command_solver... ")
 	rospy.init_node("end_effector_command_solver", anonymous=True)
 
 	try:
 		subscribe()
 	except():
 		pass
-	print("Done.")
 
 if __name__ == '__main__':
 	main()

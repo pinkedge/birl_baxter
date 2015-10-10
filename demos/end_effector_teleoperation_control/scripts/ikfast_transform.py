@@ -77,19 +77,19 @@ def callback(data):
     elif (command == "further"):
         if (global_distance < 0.3):
             global_distance += 0.05
-            print global_distance
+            rospy.loginfo(global_distance)
         else:
-            print "can not increase more"
+            rospy.loginfo("can not increase more")
     elif (command == "closer"):
         if (global_distance > 0):
             global_distance -= 0.05
             if (global_distance < 0):
                 global_distance = 0
-            print global_distance
+            rospy.loginfo(global_distance)
         else:
-            print "can not decrease more"
+            rospy.loginfo("can not decrease more")
     else:
-        print "unknown command"
+        rospy.loginfo("unknown command")
         return
     newPose = Pose()
     newPose.position = Point(
@@ -113,22 +113,21 @@ def callback(data):
     newPoseStamp.pose = newPose
     newPoseStamp.header = newHeader
 
-    print newPoseStamp
     pub.publish(newPoseStamp)
 
 def subscribe():
     rospy.Subscriber("/end_effector_command", String, callback)
-    print "subscribing.."
+    rospy.loginfo("subscribing..")
     rospy.spin();
 def main():
-    print("Initializing node ikfast_transform... ")
+    rospy.loginfo("Initializing node ikfast_transform... ")
     rospy.init_node("ikfast_transform", anonymous=True)
 
     try:
         subscribe()
     except():
         pass
-    print("Done.")
+    rospy.loginfo("Done.")
 
 if __name__ == '__main__':
     main()

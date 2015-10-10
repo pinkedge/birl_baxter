@@ -2,9 +2,8 @@
 #include <ros/ros.h>
 
 #include <interactive_markers/interactive_marker_server.h>
-#include <interactive_markers/menu_handler.h>
 
-#include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include <tf/tf.h>
 
 #include <geometry_msgs/PoseStamped.h>
@@ -54,9 +53,6 @@ InteractiveMarkerControl& makeMarkerControl( InteractiveMarker &msg )
 void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
 {
   static int count = 0;
-  std::ostringstream s;
-  s << "Feedback from marker " << feedback->marker_name << "  "
-      << feedback->control_name;
 
   switch ( feedback->event_type )
   {
@@ -88,7 +84,6 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
       newPoseStamped.header = header;
 
       pose_publisher.publish(newPoseStamped);
-      //ROS_INFO_STREAM( s.str() << ": mouse up." );
     }
       
       break;
@@ -172,25 +167,45 @@ int main(int argc, char** argv)
 
   ros::Duration(0.1).sleep();
 
-  Pose position;
-  position.position.x = 0.636951734604;
-  position.position.y = -0.82861981852;
-  position.position.z = 0.194607813293;
-  position.orientation.x = 0.382227149061;
-  position.orientation.y = 0.922397993069;
-  position.orientation.z = -0.0213525715791;
-  position.orientation.w = 0.0512680854882;
-  make6DofMarker( "right", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true );
+  ROS_INFO_STREAM("Initializing right marker");
 
-  position.position.x = 0.638507933363;
-  position.position.y = 0.826879804113;
-  position.position.z = 0.194444871259;
-  position.orientation.x = -0.381684262873;
-  position.orientation.y = 0.922633435127;
-  position.orientation.z = 0.0210780381843;
-  position.orientation.w = 0.0511896880912;
-  make6DofMarker( "left", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true );
+  tf::TransformListener listener;
+  tf::StampedTransform transform;
+  while (n.ok()) {
+    try {
+      listener.lookupTransform("/base", "/right_gripper", ros::Time(0), transform);
+    } catch (tf::TransformException ex) {
+      ROS_INFO_STREAM("Initialize right marker failed, retrying...");
+      ros::Duration(1.0).sleep();
+      continue;
+    }
+    Pose rightPose;
+    tf::pointTFToMsg(transform.getOrigin(), rightPose.position);
+    tf::quaternionTFToMsg(transform.getRotation(), rightPose.orientation);
+    make6DofMarker( "right", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D,
+      rightPose, true);
+    break;
+  }
+  ROS_INFO_STREAM("Initialized right marker");
 
+  ROS_INFO_STREAM("Initializing left marker");
+  while (n.ok()) {
+    try {
+      listener.lookupTransform("/base", "/left_gripper", ros::Time(0), transform);
+    } catch (tf::TransformException ex) {
+      ROS_INFO_STREAM("Initialize marker failed, retrying...");
+      ros::Duration(1.0).sleep();
+      continue;
+    }
+    Pose leftPose;
+    tf::pointTFToMsg(transform.getOrigin(), leftPose.position);
+    tf::quaternionTFToMsg(transform.getRotation(), leftPose.orientation);
+    make6DofMarker( "left", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D,
+      leftPose, true);
+    break;
+  }
+
+  ROS_INFO_STREAM("Initialized left marker");
 
   server->applyChanges();
 
