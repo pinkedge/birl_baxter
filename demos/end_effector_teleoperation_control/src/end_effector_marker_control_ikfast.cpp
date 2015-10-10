@@ -5,6 +5,7 @@
 #include <interactive_markers/menu_handler.h>
 
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include <tf/tf.h>
 
 #include <geometry_msgs/PoseStamped.h>
@@ -53,18 +54,9 @@ InteractiveMarkerControl& makeMarkerControl( InteractiveMarker &msg )
 // %Tag(processFeedback)%
 void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
 {
-  static int count = 0;
-  std::ostringstream s;
-  s << "Feedback from marker " << feedback->marker_name << "  "
-      << feedback->control_name;
-
   switch ( feedback->event_type )
   {
     case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE: {
-      //ROS_INFO_STREAM( s.str() << ": pose update." );
-      //if (count++ < 5)
-        //return;
-      count = 0;
       Pose newPose(feedback->pose);
       Header header;
       header.frame_id = feedback->marker_name;
@@ -103,16 +95,16 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
 ////////////////////////////////////////////////////////////////////////////////////
 
 // %Tag(6DOF)%
-void make6DofMarker(std::string marker_limb, unsigned int interaction_mode, const tf::Vector3& position, bool show_6dof )
+void make6DofMarker(std::string marker_limb, unsigned int interaction_mode, const Pose& pose, bool show_6dof)
 {
   InteractiveMarker int_marker;
-  int_marker.header.frame_id = "right_arm_mount";
-  //int_marker.pose = position;
+  int_marker.header.frame_id = marker_limb + "_arm_mount";
+  int_marker.pose = pose;
   //tf::pointTFToMsg(tf::Vector3(1, 0, 0), int_marker.pose.position);
-  tf::pointTFToMsg(position, int_marker.pose.position);
+  //tf::pointTFToMsg(position, int_marker.pose.position);
   int_marker.scale = 0.2;
 
-  int_marker.name = marker_limb;
+  int_marker.name = marker_limb + " marker";
   int_marker.description = marker_limb + " marker";
 
   // insert a box
@@ -168,20 +160,49 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "basic_controls");
   ros::NodeHandle n;
   pose_publisher = n.advertise<geometry_msgs::PoseStamped>("end_effector_command_position", 1);
-
   server.reset( new interactive_markers::InteractiveMarkerServer("basic_controls","",false) );
 
   ros::Duration(0.1).sleep();
 
-  Pose position;
-  position.position.x = 0.636951734604;
-  position.position.y = -0.82861981852;
-  position.position.z = 0.194607813293;
-  position.orientation.x = 0.382227149061;
-  position.orientation.y = 0.922397993069;
-  position.orientation.z = -0.0213525715791;
-  position.orientation.w = 0.0512680854882;
-  make6DofMarker( "right", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D, tf::Vector3(0.636951734604, -0.82861981852, 0.194607813293), true );
+  ROS_INFO_STREAM("Initializing right marker");
+
+  tf::TransformListener listener;
+  tf::StampedTransform transform;
+  while (n.ok()) {
+    try {
+      listener.lookupTransform("/right_arm_mount", "/right_gripper", ros::Time(0), transform);
+    } catch (tf::TransformException ex) {
+      ROS_INFO_STREAM("Initialize right marker failed, retrying...");
+      ros::Duration(1.0).sleep();
+      continue;
+    }
+    Pose leftPose;
+    tf::pointTFToMsg(transform.getOrigin(), leftPose.position);
+    tf::quaternionTFToMsg(transform.getRotation(), leftPose.orientation);
+    make6DofMarker( "right", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D,
+      leftPose, true);
+    break;
+  }
+  ROS_INFO_STREAM("Initialized right marker");
+
+  ROS_INFO_STREAM("Initializing left marker");
+  while (n.ok()) {
+    try {
+      listener.lookupTransform("/left_arm_mount", "/left_gripper", ros::Time(0), transform);
+    } catch (tf::TransformException ex) {
+      ROS_INFO_STREAM("Initialize marker failed, retrying...");
+      ros::Duration(1.0).sleep();
+      continue;
+    }
+    Pose leftPose;
+    tf::pointTFToMsg(transform.getOrigin(), leftPose.position);
+    tf::quaternionTFToMsg(transform.getRotation(), leftPose.orientation);
+    make6DofMarker( "left", visualization_msgs::InteractiveMarkerControl::MOVE_ROTATE_3D,
+      leftPose, true);
+    break;
+  }
+
+  ROS_INFO_STREAM("Initialized left marker");
 
   /*position.position.x = 0.638507933363;
   position.position.y = 0.826879804113;
