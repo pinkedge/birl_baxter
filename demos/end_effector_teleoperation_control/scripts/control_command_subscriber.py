@@ -8,6 +8,7 @@ import numpy
 
 import baxter_interface
 import baxter_external_devices
+import tf
 
 from baxter_interface import CHECK_VERSION
 from baxter_pykdl import baxter_kinematics
@@ -42,9 +43,11 @@ def callback(data):
 		return
 	limb = baxter_interface.Limb(current_limb)
 	limbPose = limb.endpoint_pose()
+	
 	while not ("position" in limbPose):
 		#print "re-getting pose"
 		limbPose = limb.endpoint_pose()
+
 	x = 0
 	y = 0
 	z = 0
