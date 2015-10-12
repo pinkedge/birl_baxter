@@ -32,7 +32,7 @@ def map_keyboard():
 	current_limb = 0
 	command = list()
 	rate = rospy.Rate(6)
-	print limb[current_limb] + " limb under control..."
+	rospy.loginfo(limb[current_limb] + " limb under control...")
 	while not rospy.is_shutdown():
 		c = baxter_external_devices.getch()
 		if c:
@@ -42,16 +42,16 @@ def map_keyboard():
 			if(c in keyboard_binding.keys()):
 				if (c == "f"):
 					current_limb = 1 - current_limb
-					print "control switch to " + limb[current_limb]
+					rospy.loginfo("control switch to " + limb[current_limb])
 					pub.publish(String(keyboard_binding[c] + limb[current_limb]))
 				else:
-					print "sending command: " + limb[current_limb] + " limb " + keyboard_binding[c]
+					rospy.loginfo("sending command: " + limb[current_limb] + " limb " + keyboard_binding[c])
 					#pub.publish(String(keyboard_binding[c]))
 					command = list()
 					for s in range(0, 1):
 						command.append(keyboard_binding[c])
 			else:
-				print "invalid command: " + c
+				rospy.loginfo("invalid command: " + c)
 			#print limb[current_limb] + " limb under control..."
 
 		# new control type
@@ -59,18 +59,15 @@ def map_keyboard():
 			pub.publish(String(command.pop()))
 			rate.sleep()
 
-
-
-
 def main():
-	print("Initializing node keyboard_control... ")
+	rospy.loginfo("Initializing node keyboard_control... ")
 	rospy.init_node("keyboard_control")
 
 	try:
 		map_keyboard()
 	except():
 		pass
-	print("Done.")
+	rospy.loginfo("Done.")
 
 if __name__ == '__main__':
 	main()

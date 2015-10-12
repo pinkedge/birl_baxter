@@ -8,6 +8,7 @@ import numpy
 
 import baxter_interface
 import baxter_external_devices
+import tf
 
 from baxter_interface import CHECK_VERSION
 from baxter_pykdl import baxter_kinematics
@@ -42,9 +43,10 @@ def callback(data):
 		return
 	limb = baxter_interface.Limb(current_limb)
 	limbPose = limb.endpoint_pose()
+	
 	while not ("position" in limbPose):
-		#print "re-getting pose"
 		limbPose = limb.endpoint_pose()
+
 	x = 0
 	y = 0
 	z = 0
@@ -71,19 +73,19 @@ def callback(data):
 	elif (command == "further"):
 		if (global_distance < 0.3):
 			global_distance += 0.05
-			print global_distance
+			rospy.loginfo(global_distance)
 		else:
-			print "can not increase more"
+			rospy.loginfo("can not increase more")
 	elif (command == "closer"):
 		if (global_distance > 0):
 			global_distance -= 0.05
 			if (global_distance < 0):
 				global_distance = 0
-			print global_distance
+			rospy.loginfo(global_distance)
 		else:
-			print "can not decrease more"
+			rospy.loginfo("can not decrease more")
 	else:
-		print "unknown command"
+		rospy.loginfo("unknown command")
 		return
 	newPose = Pose()
 	newPose.position = Point(
@@ -111,17 +113,15 @@ def callback(data):
 
 def subscribe():
 	rospy.Subscriber("/end_effector_command", String, callback)
-	print "subscribing.."
 	rospy.spin();
 def main():
-	print("Initializing node control_command_subscriber... ")
+	rospy.loginfo("Initializing node control_command_subscriber... ")
 	rospy.init_node("control_command_subscriber", anonymous=True)
 
 	try:
 		subscribe()
 	except():
 		pass
-	print("Done.")
 
 if __name__ == '__main__':
 	main()
