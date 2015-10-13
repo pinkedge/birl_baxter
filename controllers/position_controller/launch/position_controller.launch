@@ -1,0 +1,5 @@
+<launch>
+	<node pkg="position_controller" name="pos_controller" type="position" respawn="false" output="screen">
+		<param name="precision" value="0.0001" />
+	</node>
+</launch>
