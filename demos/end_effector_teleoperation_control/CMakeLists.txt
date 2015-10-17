@@ -11,6 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   visualization_msgs
   interactive_markers
+  sensor_msgs
+  baxter_core_msgs
+  visualization_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -74,6 +77,7 @@ generate_messages(
    geometry_msgs
    sensor_msgs
    baxter_core_msgs
+   visualization_msgs
 )
 
 ###################################
