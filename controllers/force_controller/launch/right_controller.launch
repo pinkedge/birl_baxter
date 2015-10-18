@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <!-- Load the URDF into the ROS Parameter Server -->
+  <param name="urdf"
+	 command="cat '$(find baxter_description)/urdf/baxter.urdf'" />
+  <param name="root_name" value="base" />
+  <param name="tip_name" value="right_gripper" />
+
+  <node name="right_force_controller" pkg="force_controller" type="controller" respawn="false" output="screen" args="right">
+	<param name="side" type="string" value="right" />
+  </node>
+
+</launch>
