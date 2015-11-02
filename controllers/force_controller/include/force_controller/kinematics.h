@@ -50,6 +50,9 @@ namespace force_controller
 		return -1;
 	  }
 
+    // Compute the Jacobian. 
+    // Input: Joint Angles, Joint Names, and 
+    // Output: Jacobian Matrix output result.  
 	  bool getJacobian(std::vector<double> joints, std::vector<std::string> names, Eigen::MatrixXd& jacobian);
 	  bool getJacPseudoInv(std::vector<double> joints, std::vector<std::string> names, Eigen::MatrixXd& jacobian);
 

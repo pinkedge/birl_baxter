@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
 
+  <!-- To debug just add parameter debut:=true in command window -->
+  <arg name="debug" default="false"/>
+  <!-- launch-prefix runs gdb in xterm without running it automatically -->
+  <arg     if="$(arg debug)" name="gdb_arg" value="xterm -e gdb --args" />
+  <arg unless="$(arg debug)" name="gdb_arg" value="" />
+
+  <!-- Tolerance/Precision Parameter for Position Controller -->
+  <arg name="precision" default="0.0001"/>  
+
   <!-- Load the URDF into the ROS Parameter Server -->
   <param name="urdf"
 	 command="cat '$(find baxter_description)/urdf/baxter.urdf'" />
@@ -8,8 +17,9 @@
   <param name="tip_name" value="left_gripper" />
 
   <node name="left_force_controller" pkg="force_controller" type="controller" respawn="false" output="screen" args="left">
-	<param name="side" type="string" value="left" />
-        <param name="tip_name" value="left_gripper" />
+	  <param name="side" type="string" value="left" />
+    <param name="tip_name" value="left_gripper" />
+		<param name="precision" value="$(arg precision)" />    
   </node>
 
 </launch>
