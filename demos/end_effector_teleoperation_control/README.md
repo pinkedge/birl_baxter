@@ -11,7 +11,7 @@ https://github.com/birlrobotics/birl_baxter/wiki/end_effector_teleoperation_cont
 ### Environment
 To successfully build this package, the following library of C++ is required:
 * libstdc++
-* liblapac
+* liblapack
 * librt
 
 ### Denpendency
