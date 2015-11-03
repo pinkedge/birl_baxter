@@ -11,7 +11,7 @@ https://github.com/birlrobotics/birl_baxter/wiki/end_effector_teleoperation_cont
 ### Environment
 To successfully build this package, the following library of C++ is required:
 * libstdc++
-* liblapack
+* liblapac
 * librt
 
 ### Denpendency
@@ -24,7 +24,10 @@ The following package of ROS is required:
 * interactive_markers
 
 ### Build Package
-Simply run 'catkin_make' under root directory of workspace that contain this package
+Simply run   
+><code>catkin_make</code>  
+
+under root directory of workspace that contain this package
 
 ### Run
 Pleased refer to the wiki of this package:
