@@ -1,25 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-
   <!-- To debug just add parameter debut:=true in command window -->
   <arg name="debug" default="false"/>
   <!-- launch-prefix runs gdb in xterm without running it automatically -->
   <arg     if="$(arg debug)" name="gdb_arg" value="xterm -e gdb --args" />
   <arg unless="$(arg debug)" name="gdb_arg" value="" />
 
-  <!-- Tolerance/Precision Parameter for Position Controller -->
-  <arg name="precision" default="0.0001"/>  
+  <!-- Tolerance and Filter Parameters for Position Controller-->
+  <arg name="precision" default="0.001744"/>  
+  <arg name="filter"    default="0.9950"/>  
+
+ <!-- Tolerance and Filter Parameter for the Force Controller-->
+  <arg name="error_threshold" default="1.0"/>  
 
   <!-- Load the URDF into the ROS Parameter Server -->
-  <param name="urdf"
-	 command="cat '$(find baxter_description)/urdf/baxter.urdf'" />
-  <param name="root_name" value="base" />
-  <param name="tip_name" value="left_gripper" />
+  <param name="urdf" command="cat '$(find baxter_description)/urdf/baxter.urdf'"    />
+  <param name="root_name"          value="base"                   />
+  <param name="tip_name"           value="left_gripper"          />
+  <param name="side" type="string" value="left"                  />
+  <param name="precision"          value="$(arg precision)"       />    
+  <param name="filter"             value="$(arg filter)"          />    
+  <param name="error_threshold"    value="$(arg error_threshold)" />      
 
-  <node name="left_force_controller" pkg="force_controller" type="controller" respawn="false" output="screen" args="left">
-	  <param name="side" type="string" value="left" />
-    <param name="tip_name" value="left_gripper" />
-		<param name="precision" value="$(arg precision)" />    
+  <!-- Run control basis controller with force and moment basis controllers -->
+  <node name="left_force_controller" pkg="force_controller" type="controller" respawn="false" output="screen" args="left" launch-prefix="$(arg gdb_arg)">  
   </node>
 
 </launch>

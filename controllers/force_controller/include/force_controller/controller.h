@@ -5,12 +5,19 @@
 #include <ros/ros.h>
 
 // ROS Message Types
-#include <sensor_msgs/JointState.h>
-#include <baxter_core_msgs/JointCommand.h>
-#include <baxter_core_msgs/EndpointState.h>
-#include <baxter_core_msgs/SEAJointState.h>
 #include <geometry_msgs/Wrench.h>
 #include <geometry_msgs/Vector3.h>
+#include <sensor_msgs/JointState.h>
+
+// Dynamic Reconfigure
+#include <dynamic_reconfigure/server.h>
+#include <force_controller/force_error_constantsConfig.h>
+#include "/home/vmrguser/ros/indigo/baxter_ws/devel/include/force_controller/force_error_constantsConfig.h"
+
+// Baxter Message Types
+#include <baxter_core_msgs/JointCommand.h>  // To command the joints 
+#include <baxter_core_msgs/EndpointState.h> // To read the wrench at the endpoint 
+#include <baxter_core_msgs/SEAJointState.h> // To read the gravitation compensation data
 
 // Eigen Libs
 #include <Eigen/Dense>
@@ -22,9 +29,10 @@
 #include <force_controller/kinematics.h>
 
 // STD Libs
-#include <istream>
-#include <ostream>
+#include <iostream>
 #include <fstream>
+#include <string>
+using std::string; 
 
 #define PI 3.141592654
 
@@ -62,10 +70,11 @@ namespace force_controller
   	controller(ros::NodeHandle node): node_handle_(node)
 	  {
       n_ = 0;		m_ = 0;	no_ = 0;
-      double oneDeg = PI/180;
-      double force_error_threshold=1;
-      double gain;
+      kf0=0.5; kf1=kf2=km0=km1=km2=0.0;
       int nj;
+      double gain;
+      double oneDeg = PI/180;
+      double force_error_threshold=1;  
 
       /*** Get Parameter Values ***/
       // Get Parameter Values from the parameter server. Set in the roslaunch file or by hand.
@@ -83,12 +92,15 @@ namespace force_controller
 
       // Gains
       node_handle_.param<double>("gain_force", gain, 0.0005); // Orig value: 0.00005)
-      gF_ = Eigen::Vector3d::Constant(gain);
+      // gF_ = Eigen::Vector3d::Constant(gain);
+      gF_ << kf0, kf1, kf2; 
 
       node_handle_.param<double>("gain_moment", gain, 0.0000035);
       gM_ = Eigen::Vector3d::Constant(gain);
 
-      error_ = Eigen::VectorXd::Zero(6);
+      // Other vectors
+      cur_data_ = Eigen::VectorXd::Zero(6);
+      error_    = Eigen::VectorXd::Zero(6);
 
       // State
       exe_ = false;	jo_ready_ = false;
@@ -106,7 +118,7 @@ namespace force_controller
       ROS_INFO("Initial Pose initialized for %s arm, tolerance = %f", side_.c_str(), tolerance_);	
 
       // Subscribe to control basis force/moment controller
-      // wrench_sub_ = root_handle_.subscribe<baxter_core_msgs/EndpointState>("/robot/limb/right/endpoint_stats", 1, &controller::getWrenchEndpoint, this);
+      wrench_sub_ = root_handle_.subscribe<baxter_core_msgs::EndpointState>("/robot/limb/" + side_ + "/endpoint_state", 1, &controller::getWrenchEndpoint, this);
       
       // Create the kinematic chain/model through kdl from base to right/left gripper
 	    kine_model_ = Kinematics::create(tip_name_, nj);
@@ -130,30 +142,35 @@ namespace force_controller
     // Destructor
     ~controller() { }
 
+    // Public Methods
 	  inline bool start() { return init_; }
+    /*** Dynamic Reconfigure Callback ***/
+    // void callback(force_error_constants::force_error_constantsConfig &config, uint32_t level); // placed it as global in .cpp
+    
 
-	private:
+  private:
 
 	  void fillJointNames();
 	  Eigen::VectorXd getTorqueOffset();
 	  sensor_msgs::JointState fill(Eigen::VectorXd dq);
-	  Eigen::Vector3d getWrenchEndpoint(std::string type);
 	  std::vector<double> toVector(const geometry_msgs::Vector3& d);
     
-    // ROS Updates for subscribers  and Parameters
+    /*** ROS Updates for subscribers  and Parameters ***/
 	  void updateJoints(const baxter_core_msgs::SEAJointStateConstPtr& state);
 	  void updateGains(std::vector<geometry_msgs::Vector3> gain, std::vector<std::string> type);
-
-    // Force Control and Null Space Methods
+    void getWrenchEndpoint(const baxter_core_msgs::EndpointStateConstPtr& state); // Eigen::Vector3d getWrenchEndpoint(....
+    
+    /*** Force Control and Null Space Methods ***/
+    // double computeError(...) // inline method below.
+    Eigen::Vector3d getDesiredForce(string type);
 	  bool JacobianProduct(std::string type, Eigen::VectorXd& update);
 	  bool NullSpaceProjection(std::vector<Eigen::VectorXd> updates, sensor_msgs::JointState& dq);
 	  bool computePrimitiveController(std::vector<Eigen::VectorXd>& update, std::string type, geometry_msgs::Vector3 desired, std::vector<double>& e);
-    // double computeError(...) // inline method below.
 
     // Controllers
-    bool execute(forceControl::Request &req, forceControl::Response &res);     // Force Controller
-    void position_controller(sensor_msgs::JointState qd, ros::Time);           // Position Controller
     bool isMoveFinish(bool& result);                                           // Used by position control 
+    void position_controller(sensor_msgs::JointState qd, ros::Time);           // Position Controller
+    bool execute(forceControl::Request &req, forceControl::Response &res);     // Force Controller
 
     /*** Inline Methods ***/
 	  inline void ini()
@@ -176,38 +193,41 @@ namespace force_controller
 
       joints_sub_.shutdown();
 	  }
-    // Input: 
+
+
+    //*******************************************************************************************
+    // computeError(...)
+    // Simply computes the difference between the desired amount and the actual amount.
     // type: force or moment
     // xt is the current data in force/moment
     // xd is the desired data 
+    //*******************************************************************************************
 	  inline double computeError(std::string type, Eigen::Vector3d xt, Eigen::Vector3d xd)
 	  {
       double mag;
-      int offset =0;
-      if(type == "moment")
-        offset = 3;
+      int    offset = 0;
+      if(type == "moment") offset = 3;
 
       // Compute the error between current and desired quantities, save in private member
       error_ = Eigen::VectorXd::Zero(6);
       for(unsigned int i=0; i<3; i++)
         error_(i+offset) = xt(i) - xd(i);
 
-      // Also compute the norm to see if error is decreasing over time. 
+      // Also compute the norm. Useful to check if  error decreases over time. 
       mag = error_.norm();
+
       return mag;
 	  }
 
+    //*******************************************************************************************
     // Inlined Initialization function
+    // Get's class' starting time. 
+    // Sets a counter 
+    //*******************************************************************************************
 	  inline void initialize()
 	  {
-      // fillJointNames(); // already done in forcecontroller methods
       to_ = ros::Time::now();
       m_ = 0;
-	
-      // Create joint command publisher object
-      // joint_cmd_pub_ = node_handle_.advertise<baxter_core_msgs::JointCommand>("/robot/limb/" + side_ + "/joint_command", 20, false);
-      // ros::Duration(3.0).sleep();
-      
 	  }    
 
     // Node Handles
@@ -231,6 +251,7 @@ namespace force_controller
 	  Eigen::Vector3d gF_, gM_;
 	  Eigen::VectorXd error_;
     Eigen::Vector3d des_torque_;
+    Eigen::VectorXd cur_data_;
 	  std::vector<double> j_t_1_, tm_t_1_, tg_t_1_;
 	  std::vector<std::vector<double> > joints_, torque_, tg_;
 
@@ -244,6 +265,7 @@ namespace force_controller
 
     // Force Controller Tolerance Parameters
     double force_error_threshold_;
+    double kf0, kf1, kf2, km0, km1, km2; // gain constants. used with dynamic_reconfigure
 
     // Status Boolean Flags
 	  bool init_, exe_, jo_ready_;
