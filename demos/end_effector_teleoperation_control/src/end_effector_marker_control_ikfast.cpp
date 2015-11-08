@@ -96,7 +96,8 @@ void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPt
 void make6DofMarker(std::string marker_limb, unsigned int interaction_mode, const Pose& pose, bool show_6dof)
 {
   InteractiveMarker int_marker;
-  int_marker.header.frame_id = marker_limb + "_arm_mount";
+  //int_marker.header.frame_id = marker_limb + "_arm_mount";
+  int_marker.header.frame_id = "base";
   int_marker.pose = pose;
   //tf::pointTFToMsg(tf::Vector3(1, 0, 0), int_marker.pose.position);
   //tf::pointTFToMsg(position, int_marker.pose.position);
@@ -168,7 +169,7 @@ int main(int argc, char** argv)
   tf::StampedTransform transform;
   while (n.ok()) {
     try {
-      listener.lookupTransform("/right_arm_mount", "/right_gripper", ros::Time(0), transform);
+      listener.lookupTransform("/base", "/right_gripper", ros::Time(0), transform);
     } catch (tf::TransformException ex) {
       ROS_INFO_STREAM("Initialize right marker failed, retrying...");
       ros::Duration(1.0).sleep();
@@ -186,7 +187,7 @@ int main(int argc, char** argv)
   ROS_INFO_STREAM("Initializing left marker");
   while (n.ok()) {
     try {
-      listener.lookupTransform("/left_arm_mount", "/left_gripper", ros::Time(0), transform);
+      listener.lookupTransform("/base", "/left_gripper", ros::Time(0), transform);
     } catch (tf::TransformException ex) {
       ROS_INFO_STREAM("Initialize marker failed, retrying...");
       ros::Duration(1.0).sleep();
