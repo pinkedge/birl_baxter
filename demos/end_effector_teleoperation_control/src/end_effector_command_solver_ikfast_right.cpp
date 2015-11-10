@@ -14,15 +14,24 @@
 
 using namespace geometry_msgs;
 
+const std::string limbName = "right";
+
 ros::Publisher jointCommandPublisher;
 
-void findIKSolutions(double _tx, double _ty, double _tz, double _qw, double _qx, double _qy, double _qz);
+bool findIKSolutions(double _tx, double _ty, double _tz, double _qw, double _qx, double _qy, double _qz, IkSolutionList<IKREAL_TYPE> &solutions);
+void publishSolution(const IkSolutionList<IKREAL_TYPE> &solutions);
 
 void callBack(const PoseStamped &target) {
     ROS_INFO("recieved right arm command: %lf %lf %lf %lf %lf %lf %lf", target.pose.position.x, target.pose.position.y, target.pose.position.z,
         target.pose.orientation.w, target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z);
-    findIKSolutions(target.pose.position.x, target.pose.position.y, target.pose.position.z,
-        target.pose.orientation.w, target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z);
+    
+    IkSolutionList<IKREAL_TYPE> solutions;
+    bool bSuccess = findIKSolutions(target.pose.position.x, target.pose.position.y, target.pose.position.z,
+        target.pose.orientation.w, target.pose.orientation.x, target.pose.orientation.y, target.pose.orientation.z, solutions);
+    
+    if (bSuccess) {
+        publishSolution(solutions);
+    }
 }
 
 int main(int argc, char** argv)
@@ -36,12 +45,36 @@ int main(int argc, char** argv)
     return 0;
 }
 
-void findIKSolutions(double _tx, double _ty, double _tz, double _qw, double _qx, double _qy, double _qz) {
-    IKREAL_TYPE eerot[9],eetrans[3];
+void publishSolution(const IkSolutionList<IKREAL_TYPE> &solutions) {
     unsigned int num_of_joints = GetNumJoints();
-    unsigned int num_free_parameters = GetNumFreeParameters();
-    IkSolutionList<IKREAL_TYPE> solutions;
+    unsigned int num_of_solutions = (int)solutions.GetNumSolutions();
+    printf("Found %d ik solutions:\n", num_of_solutions ); 
+    std::vector<IKREAL_TYPE> solvalues(num_of_joints);
 
+    baxter_core_msgs::JointCommand command;
+    command.mode = 1;
+    std::string jointNamesArray[] = {limbName + "_s0", limbName + "_s1", limbName + "_e0", limbName + "_e1",
+        limbName + "_w0", limbName + "_w1", limbName + "_w2"};
+    std::vector<std::string> jointNamesVector(num_of_joints);
+    for( std::size_t j = 0; j < num_of_joints; ++j)
+        jointNamesVector[j] = jointNamesArray[j];
+    command.names = jointNamesVector;
+
+    const IkSolutionBase<IKREAL_TYPE>& sol = solutions.GetSolution(0);
+    int this_sol_free_params = (int)sol.GetFree().size(); 
+    std::vector<IKREAL_TYPE> vsolfree(this_sol_free_params);
+
+    sol.GetSolution(&solvalues[0],vsolfree.size()>0?&vsolfree[0]:NULL);
+    command.command.resize(num_of_joints);
+    for( std::size_t j = 0; j < num_of_joints; ++j)
+        command.command[j] = solvalues[j];
+    jointCommandPublisher.publish(command);
+}
+
+bool findIKSolutions(double _tx, double _ty, double _tz, double _qw, double _qx, double _qy, double _qz, IkSolutionList<IKREAL_TYPE> &solutions) {
+    IKREAL_TYPE eerot[9],eetrans[3];
+    unsigned int num_free_parameters = GetNumFreeParameters();
+    
     eetrans[0] = _tx;
     eetrans[1] = _ty;
     eetrans[2] = _tz;
@@ -66,34 +99,14 @@ void findIKSolutions(double _tx, double _ty, double _tz, double _qw, double _qx,
     bool bSuccess = false;
     do {
         bSuccess = ComputeIk(eetrans, eerot, &vfree, solutions);
-        if( !bSuccess ) {
+        if(!bSuccess) {
             vfree += 0.1;
         }
         if (vfree > 2.094) {
             printf("Exceeded max w1 angle, returning...\n");
-            return;
+            break;
         }
     } while (!bSuccess);
-
-    unsigned int num_of_solutions = (int)solutions.GetNumSolutions();
-    printf("Found %d ik solutions:\n", num_of_solutions ); 
-    std::vector<IKREAL_TYPE> solvalues(num_of_joints);
-
-    baxter_core_msgs::JointCommand command;
-    command.mode = 1;
-    std::string jointNamesArray[] = {"right_s0", "right_s1", "right_e0", "right_e1", "right_w0", "right_w1", "right_w2"};
-    std::vector<std::string> jointNamesVector(num_of_joints);
-    for( std::size_t j = 0; j < num_of_joints; ++j)
-        jointNamesVector[j] = jointNamesArray[j];
-    command.names = jointNamesVector;
-
-    const IkSolutionBase<IKREAL_TYPE>& sol = solutions.GetSolution(0);
-    int this_sol_free_params = (int)sol.GetFree().size(); 
-    std::vector<IKREAL_TYPE> vsolfree(this_sol_free_params);
-
-    sol.GetSolution(&solvalues[0],vsolfree.size()>0?&vsolfree[0]:NULL);
-    command.command.resize(num_of_joints);
-    for( std::size_t j = 0; j < num_of_joints; ++j)
-        command.command[j] = solvalues[j];
-    jointCommandPublisher.publish(command);
+    
+    return bSuccess;
 }
