@@ -43,7 +43,7 @@ namespace position_controller
 	  bool isMoveFinish(bool& result);
 	  void execute(sensor_msgs::JointState qd);
 
-    // Inlined Initialization function
+    // Inlined Initialization function: Get time and publish joint commands. 
 	  inline void initialize()
 	  {
       fillJointNames();

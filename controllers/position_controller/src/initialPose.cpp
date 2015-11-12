@@ -116,6 +116,8 @@ namespace position_controller
         result = true;
         return true;
       }
+
+    // Timer. If robot cannot reach goal with this level of accuracy before timeout, send error. 
     else if( (keep <= 2) || ( ((tnow - to_).toSec()) > 90.0 ) )
       {
         result = false;   //If the error does not decrease and its not near the goal, finish move but indicate that the result is not good
@@ -139,6 +141,7 @@ namespace position_controller
     for(unsigned int i=0; i<qd.position.size(); i++)
       goal_.push_back(qd.position[i]);
 
+    // Create a new variable qgoal in which we filter the joing angle between the current position joints_ and the goal position goal_. If alpha is 0, we send the goal directly, if alpha is 1, we stay in our current position. This filter has the effect of speeding up or slowing down the motion of the robot. 
     qd_ = goal_;
     qgoal_.mode = qgoal_.POSITION_MODE;
     qgoal_.names = joints_names_;
