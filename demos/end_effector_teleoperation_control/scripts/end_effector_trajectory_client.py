@@ -58,7 +58,7 @@ def listener():
         try:
             # rs = baxter_interface.RobotEnable(CHECK_VERSION)
             rs = baxter_interface.RobotEnable()
-            rospy.loginfo("Enabling robot... ")
+            #rospy.loginfo("Enabling robot... ")
             rs.enable()
             fine = True
         except(OSError):
