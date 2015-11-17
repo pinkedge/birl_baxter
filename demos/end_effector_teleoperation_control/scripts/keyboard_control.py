@@ -23,7 +23,7 @@ def map_keyboard():
 	keyboard_binding["d"] = "right"
 	keyboard_binding["q"] = "backward"
 	keyboard_binding["e"] = "forward"
-	keyboard_binding["f"] = "switch limb to "
+	keyboard_binding["f"] = "switch limb "
 	keyboard_binding["z"] = "orientation_x"
 	keyboard_binding[" "] = "keep"
 	keyboard_binding["k"] = "further"
@@ -33,12 +33,18 @@ def map_keyboard():
 	command = list()
 	rate = rospy.Rate(6)
 	rospy.loginfo(limb[current_limb] + " limb under control...")
+	rospy.loginfo('press ? to print help')
+	helperCount = 3
 	while not rospy.is_shutdown():
 		c = baxter_external_devices.getch()
 		if c:
 			#catch Esc or ctrl-c
 			if c in ['\x1b', '\x03']:
 				rospy.signal_shutdown("Finished.Exiting...")
+			
+			if c == '?':
+				printHelper(keyboard_binding)
+			
 			if(c in keyboard_binding.keys()):
 				if (c == "f"):
 					current_limb = 1 - current_limb
@@ -52,6 +58,7 @@ def map_keyboard():
 						command.append(keyboard_binding[c])
 			else:
 				rospy.loginfo("invalid command: " + c)
+				rospy.loginfo('press ? to print help')
 			#print limb[current_limb] + " limb under control..."
 
 		# new control type
@@ -68,6 +75,11 @@ def main():
 	except():
 		pass
 	rospy.loginfo("Done.")
+	
+def printHelper(keyboard_binding):
+	print 'key maping:'
+	for c in keyboard_binding.keys():
+		print c + ' ---> ' + keyboard_binding[c]
 
 if __name__ == '__main__':
 	main()

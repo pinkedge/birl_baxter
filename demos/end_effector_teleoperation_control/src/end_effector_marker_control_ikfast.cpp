@@ -52,6 +52,10 @@ InteractiveMarkerControl& makeMarkerControl( InteractiveMarker &msg )
 // %Tag(processFeedback)%
 void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
 {
+  static unsigned int frameCount = 0;
+  if (frameCount++ % 10 == 0) {
+    return;
+  }
   switch ( feedback->event_type )
   {
     case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE: {
