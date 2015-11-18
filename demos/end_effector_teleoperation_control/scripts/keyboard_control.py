@@ -13,7 +13,6 @@ from std_msgs.msg import (
 	String,
 )
 
-global_command = "keep"
 def map_keyboard():
 	pub = rospy.Publisher("end_effector_command", String, queue_size=10);
 	keyboard_binding = {}
@@ -30,17 +29,16 @@ def map_keyboard():
 	keyboard_binding["l"] = "closer"
 	limb = ["right", "left"]
 	current_limb = 0
-	command = list()
-	rate = rospy.Rate(6)
 	rospy.loginfo(limb[current_limb] + " limb under control...")
 	rospy.loginfo('press ? to print help')
-	helperCount = 3
+	rate = rospy.Rate(10)
 	while not rospy.is_shutdown():
 		c = baxter_external_devices.getch()
 		if c:
 			#catch Esc or ctrl-c
 			if c in ['\x1b', '\x03']:
 				rospy.signal_shutdown("Finished.Exiting...")
+				return
 			
 			if c == '?':
 				printHelper(keyboard_binding)
@@ -52,19 +50,12 @@ def map_keyboard():
 					pub.publish(String(keyboard_binding[c] + limb[current_limb]))
 				else:
 					rospy.loginfo("sending command: " + limb[current_limb] + " limb " + keyboard_binding[c])
-					#pub.publish(String(keyboard_binding[c]))
-					command = list()
-					for s in range(0, 1):
-						command.append(keyboard_binding[c])
+					pub.publish(String(keyboard_binding[c]))
 			else:
 				rospy.loginfo("invalid command: " + c)
 				rospy.loginfo('press ? to print help')
-			#print limb[current_limb] + " limb under control..."
-
-		# new control type
-		if (len(command)):
-			pub.publish(String(command.pop()))
 			rate.sleep()
+
 
 def main():
 	rospy.loginfo("Initializing node keyboard_control... ")
