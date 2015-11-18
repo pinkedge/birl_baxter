@@ -30,7 +30,8 @@ pub = rospy.Publisher("end_effector_command_solution", JointCommand, queue_size=
 
 def callback(data):
 	time_now = rospy.Time().now()
-	if (time_now.secs - data.header.stamp.secs > 1 | time_now.nsecs - data.header.stamp.nsecs > 500000000):
+	if (time_now.secs - data.header.stamp.secs > 1):
+		rospy.loginfo("time stamp too old, ignore...")
 		return
 
 	commandPose = data.pose

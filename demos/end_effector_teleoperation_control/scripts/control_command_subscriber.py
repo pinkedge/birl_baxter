@@ -30,75 +30,81 @@ from geometry_msgs.msg import (
 pub = rospy.Publisher("end_effector_command_position", PoseStamped, queue_size=1)
 
 current_limb = "right"
-global_distance = 0.01
+global_distance = 0.001
+global_change_factor = 0.001
+limbPose = Pose()
+
+def initLimbPose():
+	global limbPose
+	global current_limb
+	
+	limb = baxter_interface.Limb(current_limb)
+	currentPose = dict()
+	while not ("position" in currentPose):
+		currentPose = limb.endpoint_pose()
+	
+	limbPose.position = Point(
+				currentPose["position"].x,
+				currentPose["position"].y,
+				currentPose["position"].z,
+			)
+	limbPose.orientation = Quaternion(
+				currentPose["orientation"].x,
+				currentPose["orientation"].y,
+				currentPose["orientation"].z,
+				currentPose["orientation"].w,
+			)
+
 def callback(data):
 	global current_limb
 	global global_distance
+	global limbPose
+	
 	command = data.data
+	rospy.loginfo("recieved command: %s" % command)
 	if not (command.find("switch") == -1):
 		if (command.find("right") == -1):
 			current_limb = "left"
 		else:
 			current_limb = "right"
+		initLimbPose()
 		return
-	limb = baxter_interface.Limb(current_limb)
-	limbPose = limb.endpoint_pose()
-	
-	while not ("position" in limbPose):
-		limbPose = limb.endpoint_pose()
 
-	x = 0
-	y = 0
-	z = 0
-	rx = 0
-	ry = 0
-	rz = 0
-	rw = 0
 	if (command == "up"):
-		z = global_distance
+		limbPose.position.z += global_distance
 	elif (command == "down"):
-		z = -global_distance
+		limbPose.position.z -= global_distance
 	elif (command == "left"):
-		y = global_distance
+		limbPose.position.y += global_distance
 	elif (command == "right"):
-		y = -global_distance
+		limbPose.position.y -= global_distance
 	elif (command == "backward"):
-		x = -global_distance
+		limbPose.position.x -= global_distance
 	elif (command == "forward"):
-		x = global_distance
+		limbPose.position.x += global_distance
 	elif (command == "orientation_x"):
-		rx = global_distance
+		limbPose.position.x -= global_distance
 	elif (command == "keep"):
 		pass
 	elif (command == "further"):
 		if (global_distance < 0.3):
-			global_distance += 0.05
+			global_distance += global_change_factor
 			rospy.loginfo(global_distance)
 		else:
 			rospy.loginfo("can not increase more")
+		return
 	elif (command == "closer"):
 		if (global_distance > 0):
-			global_distance -= 0.05
+			global_distance -= global_change_factor
 			if (global_distance < 0):
 				global_distance = 0
 			rospy.loginfo(global_distance)
 		else:
 			rospy.loginfo("can not decrease more")
+		return
 	else:
 		rospy.loginfo("unknown command")
 		return
-	newPose = Pose()
-	newPose.position = Point(
-				limbPose["position"].x + x,
-				limbPose["position"].y + y,
-				limbPose["position"].z + z,
-			)
-	newPose.orientation = Quaternion(
-				limbPose["orientation"].x + rx,
-				limbPose["orientation"].y,
-				limbPose["orientation"].z,
-				limbPose["orientation"].w,
-			)
 
 	newHeader = Header()
 	newHeader.frame_id = current_limb
@@ -106,17 +112,19 @@ def callback(data):
 	newHeader.stamp = rospy.Time().now()
 
 	newPoseStamp = PoseStamped()
-	newPoseStamp.pose = newPose
+	newPoseStamp.pose = limbPose
 	newPoseStamp.header = newHeader
 
 	pub.publish(newPoseStamp)
 
 def subscribe():
+	initLimbPose()
 	rospy.Subscriber("/end_effector_command", String, callback)
 	rospy.spin();
+	
 def main():
 	rospy.loginfo("Initializing node control_command_subscriber... ")
-	rospy.init_node("control_command_subscriber", anonymous=True)
+	rospy.init_node("ikfast_transform", anonymous=True)
 
 	try:
 		subscribe()

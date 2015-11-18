@@ -34,6 +34,8 @@
 
     <group if="$(arg ikfast_keyboard)">
         <node name="end_effector_command_solver_ikfast" pkg="end_effector_teleoperation_control" type="end_effector_command_solver_ikfast" output="screen"/>
+        <node name="end_effector_command_solver_ikfast_left" pkg="end_effector_teleoperation_control" type="end_effector_command_solver_ikfast_left" output="screen"/>
+        <node name="end_effector_command_solver_ikfast_right" pkg="end_effector_teleoperation_control" type="end_effector_command_solver_ikfast_right" output="screen"/>
         <node name="ikfast_transform" pkg="end_effector_teleoperation_control" type="ikfast_transform.py" output="screen"/>
         <node name="keyboard_control" pkg="end_effector_teleoperation_control" type="keyboard_control.py" output="screen"/>
     </group>

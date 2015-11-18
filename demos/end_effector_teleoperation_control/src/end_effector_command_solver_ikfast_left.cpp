@@ -14,6 +14,8 @@
 
 using namespace geometry_msgs;
 const std::string limbName = "left";
+// the joint order of solution is s -> e -> w, while in joint state is e -> s -> w
+const unsigned int leftJointAngleIndex[] = {10, 11, 8, 9, 12, 13, 14};
 
 ros::Publisher jointCommandPublisher;
 sensor_msgs::JointState currentJointState;
@@ -57,8 +59,6 @@ int main(int argc, char** argv)
 
 IKREAL_TYPE getEstimatedCostFromCurrentJointState(const IkSolutionBase<IKREAL_TYPE>& target) {
     const unsigned int num_of_joints = GetNumJoints();
-    // the joint order of solution is s -> e -> w, while in joint state is e -> s -> w
-    const unsigned int leftJointAngleIndex[] = {10, 11, 8, 9, 12, 13, 14};
     
     std::vector<IKREAL_TYPE> solvalues(num_of_joints);
     
@@ -89,7 +89,13 @@ const IkSolutionBase<IKREAL_TYPE>& selectBestSolution(const IkSolutionList<IKREA
             resultIndex = count;
         }
     }
-    
+    ROS_INFO("Select solution in %d", resultIndex);
+    printf("Current joint angle is :");
+    const unsigned int num_of_joints = GetNumJoints();
+    for (unsigned int count = 0; count < num_of_joints; count++) {
+        printf(" %lf", currentJointState.position[leftJointAngleIndex[count]]);
+    }
+    printf("\n");
     return solutions.GetSolution(resultIndex);
 }
 
@@ -112,12 +118,13 @@ void publishSolution(const IkSolutionBase<IKREAL_TYPE>& solution) {
 
     solution.GetSolution(&solvalues[0],vsolfree.size()>0?&vsolfree[0]:NULL);
     command.command.resize(num_of_joints);
-    ROS_INFO("JointCommand to be published: ");
+    printf("JointCommand to be published: ");
     for( std::size_t j = 0; j < num_of_joints; ++j) {
         command.command[j] = solvalues[j];
-        ROS_INFO("%lf", solvalues[j]);
+        printf(" %lf", solvalues[j]);
     }
-    ROS_INFO("\n");
+    printf("\n");
+    
     jointCommandPublisher.publish(command);
 }
 
@@ -173,7 +180,7 @@ bool findIKSolutions(double _tx, double _ty, double _tz, double _qw, double _qx,
         }
         
         if(!bSuccess) {
-            currentFactor += 0.1;
+            currentFactor += 0.01;
         }
         if (currentW1Angle + currentFactor > 2.094 && currentW1Angle - currentFactor < -1.571) {
             printf("Exceeded max w1 angle, returning...\n");
