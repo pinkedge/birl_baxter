@@ -1,5 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
+  <!-- 1. To debug just add parameter debut:=true in command window -->
+  <arg name="debug" default="false"/>
+
+  <!-- 2. Joint Command Timeout -->
+  <arg name="timeOut" default="1.5" />
+
+  <!-- 3. launch-prefix runs gdb in xterm without running it automatically -->
+  <arg     if="$(arg debug)" name="gdb_arg" value="xterm -e gdb --args" />
+  <arg unless="$(arg debug)" name="gdb_arg" value="" />
+
+  <!-- 4. Tolerance and Filter Parameters for Position Controller-->
+  <arg name="precision" default="0.01744"/>  
+  <arg name="filter"    default="0.0"/>  
+
+  <!-- 5. Tolerance and Filter Parameter for the Force Controller-->
+  <arg name="error_threshold" default="1.0"/>  
+
+  <!-- 6. Load the URDF and other kinematics andd controller parameters into the ROS Parameter Server -->
+  <param name="urdf" command="cat '$(find baxter_description)/urdf/baxter.urdf'"    />
+  <param name="root_name"          value="base"                   />
+  <param name="tip_name"           value="left_gripper"          />
+  <param name="side" type="string" value="left"                  />
+  <param name="precision"          value="$(arg precision)"       />    
+  <param name="filter"             value="$(arg filter)"          />    
+  <param name="error_threshold"    value="$(arg error_threshold)" />      
+
+  <!-- Change the timeout of JointCommand -->
+  <node name="JointCommand_timeoutDelay" pkg="rostopic" type="rostopic" args="pub -r 10 /robot/limb/left/joint_command_timeout std_msgs/Float64 $(arg timeOut)">
+  </node>
+
+  <!-- Run control basis controller with force and moment basis controllers -->
+  <node name="left_force_controller" pkg="force_controller" type="controller" output="screen" respawn="false" args="left" launch-prefix="$(arg gdb_arg)">  >
+  </node>
+   
+</launch>
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
   <!-- To debug just add parameter debut:=true in command window -->
   <arg name="debug" default="false"/>
   <!-- launch-prefix runs gdb in xterm without running it automatically -->
@@ -7,8 +44,8 @@
   <arg unless="$(arg debug)" name="gdb_arg" value="" />
 
   <!-- Tolerance and Filter Parameters for Position Controller-->
-  <arg name="precision" default="0.001744"/>  
-  <arg name="filter"    default="0.9950"/>  
+  <arg name="precision" default="0.01744"/>  
+  <arg name="filter"    default="0.0"/>  
 
  <!-- Tolerance and Filter Parameter for the Force Controller-->
   <arg name="error_threshold" default="1.0"/>  
@@ -21,6 +58,10 @@
   <param name="precision"          value="$(arg precision)"       />    
   <param name="filter"             value="$(arg filter)"          />    
   <param name="error_threshold"    value="$(arg error_threshold)" />      
+
+  <!-- Change the timeout of JointCommand -->
+  <node name="JointCommand_timeoutDelay" pkg="rostopic" type="rostopic" args="pub -r 10 /robot/limb/left/joint_command_timeout std_msgs/Float64 2">
+  </node>
 
   <!-- Run control basis controller with force and moment basis controllers -->
   <node name="left_force_controller" pkg="force_controller" type="controller" respawn="false" output="screen" args="left" launch-prefix="$(arg gdb_arg)">  
