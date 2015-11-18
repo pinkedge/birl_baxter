@@ -29,9 +29,9 @@
 #include <force_controller/kinematics.h>
 
 // Forcing Core Files (http://processors.wiki.ti.com/index.php/Multithreaded_Debugging_Made_Easier_by_Forcing_Core_Dumps)
-#include <sys/types.h>
-#include <signal.h>
-#include <unistd.h>
+//include <sys/types.h>
+//include <signal.h>
+//include <unistd.h>
 
 // STD Libs
 #include <iostream>
@@ -54,8 +54,10 @@ using std::string;
 /*** Inner Control Loop ***/ 
 #define JNTPOS_TORQUE_CONTROLLER 1     // If true, set point is joint angles, otherwise joint torques.
 
-/*** While Loop Rates ***/
-#define ROS_RATE     1000              // This rate is very important. 
+/*** Time  Rates ***/
+#define ROS_RATE     1000              // These rates are very important. ROS_RATE controls while loop timing. 
+#define TIME_OUT     1.5               // This timeout determines how long the inner pos_Ctrl will run. Very important. 
+                                       // If too long and robot is in contact with surface, forces will rise dangerously.
                                        // We want to add delta joint angles to the latest joint position. To do this, we act as fast as possible, or else we'll be adding dq's to old joint valus. Also, joint_command works best at a fast rate.
 
 /*** MATH ***/
@@ -68,12 +70,12 @@ namespace force_controller
   static const int LEFT = 0, RIGHT = 1;
 
   // Proportional Gain Parameters for joint controller Const: (0.0050)
-  double pg= 0.0050;
-  double k_fp0=pg, k_fp1=pg, k_fp2=pg, k_mp0=pg, k_mp1=pg, k_mp2=pg; // gain constants. used with dynamc_reconfigure
+  double pg= 0; // 0.0050;
+  double k_fp0=0.015, k_fp1=pg, k_fp2=pg, k_mp0=pg, k_mp1=pg, k_mp2=pg; // gain constants. used with dynamc_reconfigure
   
 
   // Derivative Gain Parameters for joint controller Const: Const: 0.0025
-  double dg=0.0025;
+  double dg=0; // 0.0025;
   double k_fv0=dg, k_fv1=dg, k_fv2=dg, k_mv0=dg, k_mv1=dg, k_mv2=dg;
 
   bool force_error_constantsFlag = false;
@@ -194,7 +196,7 @@ namespace force_controller
       // 3. Publication object to publish commanded joint positions throught the joint_command topic.
       if(joint_cmd_pub_flag)
         {
-          joint_cmd_pub_ = node_handle_.advertise<baxter_core_msgs::JointCommand>("/robot/limb/" + side_ + "/joint_command", 20, false);
+          joint_cmd_pub_ = node_handle_.advertise<baxter_core_msgs::JointCommand>("/robot/limb/" + side_ + "/joint_command", 10, false); // May want to keep a small num of points
           ros::Duration(3.0).sleep(); ROS_INFO("Initial Pose initialized for %s arm, tolerance = %f", side_.c_str(), tolerance_);	
           rosCommunicationCtr++;
         }
@@ -230,7 +232,8 @@ namespace force_controller
       // Print successful exit
       ros::Duration(1.0).sleep();
 
-      // While loop rates
+      // Time Rates
+      timeOut_        =TIME_OUT;
       while_loop_rate_=ROS_RATE;
 
       /*** Filtering ***/
@@ -274,7 +277,7 @@ namespace force_controller
     
     /*** Controllers ***/
     bool isMoveFinish(bool& result);                                                  // Used by position control to check if goal has been reached.
-    void position_controller(sensor_msgs::JointState qd, ros::Time);                  // Position Controller
+    bool position_controller(sensor_msgs::JointState qd, ros::Time);                  // Position Controller
     bool force_controller(forceControl::Request &req, forceControl::Response &res);   // Force Controller
     void torque_controller(Eigen::VectorXd delT, ros::Time t0);                       // Torque controller
 
@@ -327,7 +330,7 @@ namespace force_controller
       // Compute the error between cur and des  data, save in error_ private member
       error_ = Eigen::VectorXd::Zero(6);
       for(unsigned int i=0; i<3; i++)
-        error_(i+offset) = xd(i)-xt(i);
+        error_(i+offset) = (xd(i)-xt(i)); // -1 is to help us descend the gradient error. 
         
       // Compute the derivative error using a finite difference approximation. 
       // TODO: should try the symmetric difference quotient. (error+1-error_1)/2rate
@@ -445,6 +448,7 @@ namespace force_controller
 
     // Time
 	  ros::Time to_;
+    double timeOut_;
     int while_loop_rate_;
 
   };
