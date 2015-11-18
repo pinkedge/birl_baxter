@@ -27,7 +27,7 @@ from geometry_msgs.msg import (
     PoseStamped,
 )
 
-pub = rospy.Publisher("end_effector_command_position", PoseStamped, queue_size=1)
+commandPositionPublisher = rospy.Publisher("end_effector_command_position", PoseStamped, queue_size=1)
 
 current_limb = "right"
 global_distance = 0.001
@@ -55,13 +55,21 @@ def initLimbPose():
 				currentPose["orientation"].w,
 			)
 
+checked = True
+def commandCheckCallback(data):
+	global checked
+	if not (data.data.find("done") < 0):
+		#rospy.loginfo("command checked")
+		checked = True
+
 def callback(data):
+	global checked
 	global current_limb
 	global global_distance
 	global limbPose
 	
 	command = data.data
-	rospy.loginfo("recieved command: %s" % command)
+	#rospy.loginfo("recieved command: %s" % command)
 	if not (command.find("switch") == -1):
 		if (command.find("right") == -1):
 			current_limb = "left"
@@ -106,6 +114,11 @@ def callback(data):
 		rospy.loginfo("unknown command")
 		return
 
+	if not checked:
+		rospy.loginfo("command is not checked, reject...")
+		return
+	checked = False
+	
 	newHeader = Header()
 	newHeader.frame_id = current_limb
 
@@ -115,15 +128,16 @@ def callback(data):
 	newPoseStamp.pose = limbPose
 	newPoseStamp.header = newHeader
 
-	pub.publish(newPoseStamp)
+	commandPositionPublisher.publish(newPoseStamp)
 
 def subscribe():
 	initLimbPose()
 	rospy.Subscriber("/end_effector_command", String, callback)
+	rospy.Subscriber("end_effector_command_check", String, commandCheckCallback)
 	rospy.spin();
 	
 def main():
-	rospy.loginfo("Initializing node control_command_subscriber... ")
+	#rospy.loginfo("Initializing node control_command_subscriber... ")
 	rospy.init_node("ikfast_transform", anonymous=True)
 
 	try:
