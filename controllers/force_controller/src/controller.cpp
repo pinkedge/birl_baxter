@@ -1,5 +1,4 @@
 #include <force_controller/controller.h>
-
 namespace force_controller
 {
   //***********************************************************************************************************************************************
@@ -671,9 +670,14 @@ namespace force_controller
     ROS_INFO("Received the force controller service call. Will compute joint angle upate and pass to position controller.");
 
     // Local variables
+    bool fin= true;
     bool ok = false;
     std::vector<double> error, js;
     std::vector<Eigen::VectorXd> dqs;
+
+    // Set initial variables like time t0_=0.0
+    // side_ = qd.header.frame_id;
+    initialize();
 
     // Initialize vectors
     js.resize(7);                    // Will keep current 7 joint angles here
@@ -716,7 +720,7 @@ namespace force_controller
     setPoint_ << req.desired[0].x, req.desired[0].y, req.desired[0].z;
  
     // As long as our norm is greater than the force error threshold, continue the computation.
-    do {
+    //    do {
       // B1. Only 1 controller: call primitive controller. Store the delta joint angle update in dqs. 
       for(unsigned int i=0; i<req.num_ctrls; i++)
         {
@@ -751,24 +755,30 @@ namespace force_controller
 
       // C. Move to desired joint angle position through a positon or torque control loop
       if(jntPos_Torque_InnerCtrl_Flag_)           
-        position_controller(res.update_angles,to_); // Position Controller
+        fin=position_controller(res.update_angles,to_); // Position Controller
         
       else 
         torque_controller(dqs[0],to_);              // Torque Controller        
 
-      // Set frequency to 
-      loopRate.sleep();
+    //   // If position controller did not finish properly, exit, else continue the while loop.
+    //   if(!fin)
+    //     break;
 
-    }  while(error_norm_ > force_error_threshold_); // do while
+    //   // Set frequency to 
+    //   loopRate.sleep();
+    //   }  while(fin && error_norm_ > force_error_threshold_); // do while
+    // ROS_INFO_STREAM("isMoveFinish returns: " << fin );
 
     return true;	
   }
 
-  // torque_controller
+  //********************************************************************************************
+  // torque_controller(...)
+  // Compute error in wrench point, and then use the Jt and a gain to compute torque updates.
+  // Sent to /joint_command
+  //********************************************************************************************
   void controller::torque_controller(Eigen::VectorXd delT, ros::Time t0)
     {
-      initialize();
-	
       // Copy qd into goal_ and clear member qd_ 
       goal_.clear();	qd_.clear();                     // goal_ is of type vector<doubles> 
       for(unsigned int i=0; i<7; i++)
@@ -783,7 +793,7 @@ namespace force_controller
       // Notice that the first two are vectors, so we take the top vector elements.
       for(unsigned int i=0; i< goal_.size(); i++)
         qgoal_.command[i] = torque_[0][i]-tg_[0][i]+delT[i]; // Actual torque - gravity compensation (will be added) + delta 
-        // qgoal_.command[i] = torque_[0][i]+delT[i]; // Try with gravity compensation suppresed. 
+        // qgoal_.command[i] = torque_[0][i]+delT[i]; // Trying with gravity compensation suppresed resulted in a fast and dangerous motion dropping the arm.
 
       // Get current time 
       ros::Time tnow = ros::Time::now();
@@ -802,21 +812,17 @@ namespace force_controller
 
   //********************************************************************************************************************************************************************
   // position_controller()
-  // Move to the desired joint angles. This function originally devised in the position_control package. 
+  // Input: JointState qd is the refernce angles where we want to go. t0 is the initial time of the entire program in the ordered set: {s0,s1,e0,e1,w0,w1,w2}
+  // Try to move to the desired joint angles. This function originally devised in the position_control package. 
   // Input: 
-  // - update_angles.position with desired updated positions in the ordered set: {s0,s1,e0,e1,w0,w1,w2}
-  // - original time for the program
-  // 
+  // - update_angles.position with desired updated positions 
   //********************************************************************************************************************************************************************
-  void controller::position_controller(sensor_msgs::JointState qd, ros::Time t0)
+  bool controller::position_controller(sensor_msgs::JointState qd, ros::Time t0)
   {
-    // side_ = qd.header.frame_id;
-    initialize();
-	
     // Copy qd into goal_ and clear member qd_ 
     goal_.clear();	qd_.clear();                     // goal_ is of type vector<doubles> 
     for(unsigned int i=0; i<qd.position.size(); i++)
-      goal_.push_back(qd.position[i]);              //qd is JointStates. has a float[] positions
+      goal_.push_back(qd.position[i]);               // push back the reference angles. qd is JointStates and has a position[]
     qd_ = goal_;
 
     // Create a new variable qgoal in which we filter the joing angle between the current position joints_ and the goal position goal_. If alpha is 0, we send the goal directly, if alpha is 1, we stay in our current position. This filter has the effect of speeding up or slowing down the motion of the robot. 
@@ -831,62 +837,73 @@ namespace force_controller
     ros::Time tnow = ros::Time::now();
     n_ = 0;
 
-    // Publish desired filtered joint angles (arm moves)
+    // Publish desired filtered joint angles (arm moves). The time is the diff from now to the beginning of the demo.
     ROS_INFO("Commanded Joint Angle:\
               \n------------------------------\n<%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f> at time: %f\n------------------------------",
              qgoal_.command[0],qgoal_.command[1],qgoal_.command[2],
              qgoal_.command[3],qgoal_.command[4],qgoal_.command[5],
-             qgoal_.command[6],(to_-t0).toSec());
+             qgoal_.command[6],(tnow-t0).toSec());
     // Publish to the topic /robot/limb/right/joint_command. Baxter will move upon receiving this command. 
     joint_cmd_pub_.publish(qgoal_);
 
-    // // Check to see if the arm has finished moving. 
-    // bool cont, fin = isMoveFinish(cont);
+    // Check to see if the arm has finished moving. 
+    bool cont, fin = isMoveFinish(cont);
 
-    // // If not finished, keep looping until finished. 
-    // while(!fin && node_handle_.ok())
-    //   {
-    //     // Filter: update the goal command a bit closer to our goal. 
-    //     for(unsigned int i=0; i<goal_.size(); i++)
-    //       qgoal_.command[i] = ((1-alpha_)*goal_[i]) + (alpha_ * qgoal_.command[i]);	
+    // If not finished, keep looping until finished. 
+    while(!fin && node_handle_.ok())
+      {
+        // Filter: update the goal command a bit closer to our goal. 
+        for(unsigned int i=0; i<goal_.size(); i++)
+          qgoal_.command[i] = ((1-alpha_)*goal_[i]) + (alpha_ * qgoal_.command[i]);	
      
-    //     joint_cmd_pub_.publish(qgoal_);
-    //     fin = isMoveFinish(cont);
+        // Print commanded joint angles again and their current time 
+        ros::Time tnow = ros::Time::now();
+        ROS_INFO("Commanded Joint Angle:\
+              \n------------------------------\n<%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f> at time: %f\n------------------------------",
+             qgoal_.command[0],qgoal_.command[1],qgoal_.command[2],
+             qgoal_.command[3],qgoal_.command[4],qgoal_.command[5],
+             qgoal_.command[6],(tnow-t0).toSec());
         
-    //     ros::Duration(0.005).sleep();
-    //   }
+        joint_cmd_pub_.publish(qgoal_);
+        fin = isMoveFinish(cont);
+        
+        ros::Duration(0.005).sleep();
 
-    // // Print error to screen
-    // ROS_WARN("The current joint position error is: %f, %f, %f, %f, %f, %f, %f", qe_[0],qe_[1],qe_[2],qe_[3],qe_[4],qe_[5],qe_[6]);
+        return fin;
+      }
+
+    // Print error to screen
+    ROS_WARN("The current joint position error is: %f, %f, %f, %f, %f, %f, %f", qe_[0],qe_[1],qe_[2],qe_[3],qe_[4],qe_[5],qe_[6]);
 
     ROS_INFO("\n---------------------------------------------\nFinished Moving the %s arm\n---------------------------------------------\n", side_.c_str());
   }
 
   //*************************************************************************************************************************
   // isMoveFinish(...)
-  // Input: boolean result
-  // Output: boolean result
+  // Input: boolean output to determine if we should continue with this function. 
+  // Output: boolean output to determine if we have reached our goal.
   // Check to see if the arm has finished moving to desired joint angle position. This function is called at a given rate according to ros duration. 
+  // Uses qgoal_ which is originally set in the force_controller. It's of type baxter_core_msgs/JointCommand and contains a mode, command[], and names[].
   //*************************************************************************************************************************
   bool controller::isMoveFinish(bool& result)
   {  
     double max=0.0;
-    std::vector<double> error;
-    error.clear();
+    std::vector<double> error; error.clear();
     
     // Start counter: used to measure how many times we attempt to move before reaching the goal.
     n_ = n_ + 1;
 
-    // If 5 tries are reached and we have not reached the goal, exit and set result to false. 
+    // If 5 tries are reached and we have not reached the goal, exit and set result to false. If this number is reached we say the result failed and also return false for isMoveFinish.
     if( n_!=0  &&  (n_ % 5 != 0) )  
       {
         result = false;
         return false;
       }
 
-    // Record maximum error. 
+    // Record maximum error across all joints.
     for(unsigned int i=0; i<joints_[0].size(); i++)
       {
+        // Joint error between current position and our qgoal_ var (filtered goal var)
         error.push_back( joints_[0][i] - qd_[i] );
 
         // Update position error threshold
@@ -894,18 +911,21 @@ namespace force_controller
           max = error.back();
       }
 
-    // Transfer info from qgoal_ to a local varaible. Test if error is going down for each joint.
-    int ok=0, keep=0, k=0; // keep: means joints have not reached goal. keep trying.
+    // Copy the reference qgoal_ to a local varaible q[i]. 
+    // Test if error is going down for each joint.
+    int ok=0, keep=0, k=0; // keep: means joints have not reached goal, ie keep trying.
     std::vector<double> q;
     q.clear();	q.resize(joints_names_.size()); 
     bool copy;
 
+    // Mechanism to either copy current joint angles or goal.
     for(unsigned int i=0; i < joints_names_.size(); i++)
       {
         copy = true;
+        // Copy goal
         if( k < qgoal_.names.size() )
           {
-            // Copy qgoal to q[]
+            // Only do the following when both names match. Ensures right order.
             if(qgoal_.names[k] == joints_names_[i]) 
               {
                 q[i] = qgoal_.command[k]; 
@@ -914,24 +934,27 @@ namespace force_controller
               }
           }
         
-        // Copy joints to q only if all goal info has been copies and clear qgoal.
+        // Copy current joint angles only if goal info has been copied
         if(copy)
           q[i] = joints_[0][i];
       }	
 
-    // Test if error is reducing
+    // Completely clear our reference goal joint names and command angles.
     qgoal_.names.clear();
-    goal_.clear();
     qgoal_.command.clear();
 
+    // Have a new local variable goal be readied.
+    goal_.clear();
+    
     // If error > tolerance (test for each joint), set qgoal again. 
     for(unsigned int i=0; i<joints_[0].size(); i++)
       {	       
+        // If Joint Position Error is greater than tolearnce, do again. 
         if( fabs(error[i]) > tolerance_)         // Tolerance comes from precision parameter (launch file/constructor value).
           {
             qgoal_.names.push_back( joints_names_[i] );
-            qgoal_.command.push_back(q[i]);
-            goal_.push_back(qd_[i]);
+            qgoal_.command.push_back(q[i]);      // Adjusted in previous for/if loop
+            goal_.push_back(qd_[i]);             // Orig reference angles
 
             // Have we reached a termination condition? Still have errors?
             if( fabs( error[i] - qe_[i] ) != 0.0 )  
@@ -943,12 +966,14 @@ namespace force_controller
     qe_ = error; // qe_ is a vector of doubles, error is a double
 
     //  Have a timer in case robot does not converge to desired position for all 7 joints.
+    // The timeout is measured from the time the force_controller started until now. 
     ros::Time tnow = ros::Time::now();
-    int timeOut=30; 
-    if( (keep + ok == joints_.size()) && (ok != joints_names_.size()) && ( ((tnow - to_).toSec()) <= timeOut ))
+
+    int maxCycles=timeOut_*while_loop_rate_;
+    if( (keep + ok == joints_.size()) && (ok != joints_names_.size()) && ( ((tnow - to_).toSec()) <= timeOut_ ))
       {
-        // 200th step issue a warning.
-        if(n_ % 200 == 0)
+        // Issue a warning when timeout has been reached. 
+        if(n_ % maxCycles == 0)
           ROS_WARN("time: %f, keep = %d, ok = %d", tnow.toSec(), keep, ok);
 
         result = true; // We have a result but we have not reached the goal. 
@@ -964,15 +989,17 @@ namespace force_controller
       }
 
     // If two or less joints have only reached their goal or timeOut is greater....
-    else if( (keep <= 2) || ( ((tnow - to_).toSec()) > timeOut ) )
+    else if( (keep <= 2) || ( ((tnow - to_).toSec()) > timeOut_ ) )
       {
         result = false;   // Could not get a result.
         ROS_ERROR("Time Out, t = %f, n = %d", (tnow - to_).toSec(), n_);
+
+        // Terminate the isMoveFinish logic.
         return true;
       }
 
     if(n_ % 200 == 0)
-      ROS_WARN("F: time: %f, keep = %d, ok = %d", tnow.toSec(), keep, ok);
+      ROS_WARN("F: time: %f, keep = %d, ok = %d", (tnow-to_).toSec(), keep, ok);
 	
     result = true;
     return false;
@@ -992,13 +1019,20 @@ int main(int argc, char** argv)
 
   if(myControl.dynamic_reconfigure_flag)
     {
-      // Set up the dynamic reconfigure server
-      dynamic_reconfigure::Server<force_error_constants::force_error_constantsConfig>               srv;
+      // (i) Set up the dynamic reconfigure server
+      dynamic_reconfigure::Server<force_error_constants::force_error_constantsConfig> srv;
+
+      // (ii) Create a callback object of type force_error_constantsConfig
       dynamic_reconfigure::Server<force_error_constants::force_error_constantsConfig>::CallbackType f;
+
+      // (iii) Bind that object to the actual callback function
       f=boost::bind(&force_controller::callback, _1, _2); // Used to pass two params to a callback.
-      // If we cant callback to be a member method of the class controller, then we would need to use something like... 
+
+      // Note: how to bind a private member function: If we cant callback to be a member method of the class controller, then we would need to use something like... 
       // boost::function<void (force_error_constants::force_error_constantsConfig &,int)> f2( boost::bind( &myclass::fun2, this, _1, _2 ) );
       // Still not clear on the syntax. Since it's not a member method, we make it a global and also need to use global parameters
+
+      // (iv) Set the callback to the service server. 
       srv.setCallback(f);
 
       // Update the rosCommunicationCtr
@@ -1013,6 +1047,14 @@ int main(int argc, char** argv)
     }
   ros::Duration(1.0).sleep();
 
+  /*** Different Communication Modes ***/
+  
+  // 1. AsyncSpinner
+  //ros::AsyncSpinner spinner(myControl.get_rosCommunicationCtr());
+  //spinner.start();
+  //ros::waitForShutdown(); 
+
+  // 2. MultiThreadedSpinner
   ros::MultiThreadedSpinner spinner(myControl.get_rosCommunicationCtr()); // One spinner per ROS communication object: here we use it for 
                                                           // 1. Publish joint commands
                                                           // 2. Subsribe to current joint Angles
@@ -1021,6 +1063,11 @@ int main(int argc, char** argv)
                                                           // 5. Dynamic Reconfigure (off)
                                                           // 6. published filtered wrench
   spinner.spin();
+  ros::waitForShutdown(); 
+
+  // // 3. Blocking Spin
+  // ros::spin();
+  // ros::waitForShutdown();
 
   return 0;
 }  

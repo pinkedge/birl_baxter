@@ -60,10 +60,15 @@ include_directories(
 add_library(mykinematics src/kinematics.cpp)
 target_link_libraries(mykinematics ${catkin_LIBRARIES})
 
+# Force Controller Executable (including a service server)
 add_executable(controller src/controller.cpp)
 add_dependencies(mykinematics ${catkin_EXPORTED_TARGETS})
 add_dependencies(controller %{PROJECT_NAME}_gencfg)
 target_link_libraries(controller ${catkin_LIBRARIES} mykinematics)
+
+add_executable(force_control_client src/force_control_client.cpp)
+target_link_libraries(force_control_client ${catkin_LIBRARIES})
+add_dependencies(force_control_client %{PROJECT_NAME}_gencpp)
 
 # Install
 install(DIRECTORY include/${PROJECT_NAME}/
