@@ -60,11 +60,6 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 add_library(mykinematics src/kinematics.cpp)
 target_link_libraries(mykinematics ${catkin_LIBRARIES})
 
-# Test
-add_executable(test src/test.cpp)
-target_link_libraries(test ${catking_LIBRARIES})
-add_dependencies(test %{PROJECT_NAME}_generate_messages_cpp)
-
 # Force Controller Executable (including a service server)
 add_executable(controller src/controller.cpp)
 add_dependencies(mykinematics ${catkin_EXPORTED_TARGETS})
@@ -72,7 +67,7 @@ add_dependencies(controller %{PROJECT_NAME}_gencfg)
 target_link_libraries(controller ${catkin_LIBRARIES} mykinematics)
 
 # Force Controller Service Client Executable
-add_executable(force_control_srv_client src/force_control_srv_client/force_control_srv_client.cpp)
+add_executable(force_control_srv_client  src/force_control_srv_client/force_control_srv_client.cpp)
 target_link_libraries(force_control_srv_client ${catkin_LIBRARIES})
 add_dependencies(force_control_srv_client %{PROJECT_NAME}_generate_messages_cpp)
 
