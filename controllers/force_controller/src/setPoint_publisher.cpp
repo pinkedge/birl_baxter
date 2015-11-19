@@ -11,7 +11,7 @@
 
 // STD Libs
 #include <string>
-#define RATE 0.66 // Parameter to set publication rate
+#define RATE 500 // Parameter to set publication rate
 //---------------------------------------------------------------------------------------------------
 // Can get setPiont from launch file, command line, or another publisher--this yet to be implemented.
 // setPoint looks like:

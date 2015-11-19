@@ -53,16 +53,16 @@ using std::string;
 #define FILT_W_PUB_F 1 // Publishes a filtered wrench value 
 //----------------------------------------------------------------------------------------
 #define CTRBAS_SRV_F 0 // Publishes the control basis service server. When a client call is sent, force_control begins. 
-#define DYN_RECONF_F 1 // Dynamic reconfigure flag
+#define DYN_RECONF_F 0 // Dynamic reconfigure flag
 //----------------------------------------------------------------------------------------
 
 /*** Inner Control Loop ***/ 
 #define JNTPOS_TORQUE_CONTROLLER 1     // If true, set point is joint angles, otherwise joint torques.
 
 /*** Time  Rates ***/
-#define FC_ROS_RATE     1000              // These rates are very important. ROS_RATE controls while loop timing. 
-#define POS_ROS_RATE    20 
-#define TIME_OUT     1.5               // This timeout determines how long the inner pos_Ctrl will run. Very important. 
+#define FC_ROS_RATE     500           // These rates (Hz) set control loop pudate cycles. Inner position control loop needs to run faster than the outer loop.
+#define POS_ROS_RATE    1000 
+#define TIME_OUT        0.025            // Position Controller timeout. Determines how long to run the loop before issuing a finished flag. 
                                        // If too long and robot is in contact with surface, forces will rise dangerously.
                                        // We want to add delta joint angles to the latest joint position. To do this, we act as fast as possible, or else we'll be adding dq's to old joint valus. Also, joint_command works best at a fast rate.
 
@@ -77,7 +77,7 @@ namespace force_controller
 
   // Proportional Gain Parameters for joint controller Const: (0.0050)
   double pg= 0; // 0.0050;
-  double k_fp0=0.015, k_fp1=pg, k_fp2=pg, k_mp0=pg, k_mp1=pg, k_mp2=pg; // gain constants. used with dynamc_reconfigure
+  double k_fp0=0.020, k_fp1=pg, k_fp2=pg, k_mp0=pg, k_mp1=pg, k_mp2=pg; // gain constants. used with dynamc_reconfigure
   
 
   // Derivative Gain Parameters for joint controller Const: Const: 0.0025

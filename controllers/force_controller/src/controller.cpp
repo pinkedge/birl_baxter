@@ -74,12 +74,8 @@ namespace force_controller
         }
           
       // Proportional Gains
-      node_handle_.param<double>("gain_force", gain, 0.0005); // Orig value: 0.00005)
-      // gFp_ = Eigen::Vector3d::Constant(gain);
       gFp_ << k_fp0, k_fp1, k_fp2; 
-
-      node_handle_.param<double>("gain_moment", gain, 0.0000035);
-      gMp_ = Eigen::Vector3d::Constant(gain);
+      gMp_ << k_mp0, k_mp1, k_mp2; 
 
       // Derivative Gains
       gFv_ << k_fv0, k_fv1, k_fv2; 
@@ -107,6 +103,7 @@ namespace force_controller
       filtered_wrench_pub_flag=FILT_W_PUB_F;
       ctrl_server_flag        =CTRBAS_SRV_F; 
       dynamic_reconfigure_flag=DYN_RECONF_F; 
+      force_error_constantsFlag=false; 
 
       // 1. Subscription object to get current joint angle positions, velocities, joint torques, and gravitational compensation torques.
       if(joints_sub_flag)
@@ -1033,7 +1030,6 @@ namespace force_controller
         
         // Control the Position Loop Rate
         pos_rate.sleep();
-        return isFinished;
       }
 
     // Print error to screen
@@ -1041,6 +1037,7 @@ namespace force_controller
              qe_[0],qe_[1],qe_[2],qe_[3],qe_[4],qe_[5],qe_[6]);
 
     ROS_INFO("\n---------------------------------------------\nFinished Moving the %s arm\n---------------------------------------------\n", side_.c_str());
+    return isFinished;
   }
 
   //*************************************************************************************************************************
@@ -1137,7 +1134,7 @@ namespace force_controller
     int maxCycles=timeOut_*fc_while_loop_rate_;
 
     // 1. Info printing case. Before timeout and still working towards the goal.
-    if( (keep + ok == joints_.size()) && (ok != joints_names_.size()) && ( ((tnow - to_).toSec()) <= timeOut_ ))
+    if( (keep + ok == joints_[0].size()) && (ok != joints_names_.size()) && ( ((tnow - to_).toSec()) <= timeOut_ ))
       {
         ROS_INFO("Position Controller: At time: %f, keep = %d, ok = %d", (tnow - to_).toSec(), keep, ok);
         if(n_ % maxCycles == 0) ROS_WARN("Position Controller: Warning!! Max number of cycles reached in isMoveFinish().");
@@ -1146,8 +1143,9 @@ namespace force_controller
         return false;  // We have not yet reached the goal
       }
 
-   // 2. We timeout: either reach the best possible solution or obstructed by something. 
-    else if( (keep <= 2) || ( ((tnow - to_).toSec()) > timeOut_ ) )
+    // 2. Timeout: either reach the best possible solution or obstructed by something. 
+    //    else if( (keep <= 2) || ( ((tnow - to_).toSec()) > timeOut_ ) )
+    else if( ((tnow - to_).toSec()) > timeOut_ ) 
       {
         ROS_ERROR("Position Controller: Timed Out!! At time: %f, and number of cycles: %d", (tnow - to_).toSec(), n_);
         cont = false;   // Could not get a result.        
@@ -1163,10 +1161,9 @@ namespace force_controller
       }
 
     // if(n_ % 200 == 0)
-    //   ROS_WARN("F: time: %f, keep = %d, ok = %d", (tnow-to_).toSec(), keep, ok);
-	
-    cont = true;
-    return false;
+    //   ROS_WARN("F: time: %f, keep = %d, ok = %d", (tnow-to_).toSec(), keep, ok);	
+    // cont = true;
+    // return false;
   }
 }  //namespace controller
 
