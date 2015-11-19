@@ -29,32 +29,6 @@ from geometry_msgs.msg import (
 
 commandPositionPublisher = rospy.Publisher("end_effector_command_position", PoseStamped, queue_size=1)
 
-current_limb = "right"
-global_distance = 0.001
-global_change_factor = 0.001
-limbPose = Pose()
-
-def initLimbPose():
-	global limbPose
-	global current_limb
-	
-	limb = baxter_interface.Limb(current_limb)
-	currentPose = dict()
-	while not ("position" in currentPose):
-		currentPose = limb.endpoint_pose()
-	
-	limbPose.position = Point(
-				currentPose["position"].x,
-				currentPose["position"].y,
-				currentPose["position"].z,
-			)
-	limbPose.orientation = Quaternion(
-				currentPose["orientation"].x,
-				currentPose["orientation"].y,
-				currentPose["orientation"].z,
-				currentPose["orientation"].w,
-			)
-
 checked = True
 def commandCheckCallback(data):
 	global checked
@@ -64,80 +38,20 @@ def commandCheckCallback(data):
 
 def callback(data):
 	global checked
-	global current_limb
-	global global_distance
-	global limbPose
-	
-	command = data.data
-	#rospy.loginfo("recieved command: %s" % command)
-	if not (command.find("switch") == -1):
-		if (command.find("right") == -1):
-			current_limb = "left"
-		else:
-			current_limb = "right"
-		initLimbPose()
-		return
-
-	if (command == "up"):
-		limbPose.position.z += global_distance
-	elif (command == "down"):
-		limbPose.position.z -= global_distance
-	elif (command == "left"):
-		limbPose.position.y += global_distance
-	elif (command == "right"):
-		limbPose.position.y -= global_distance
-	elif (command == "backward"):
-		limbPose.position.x -= global_distance
-	elif (command == "forward"):
-		limbPose.position.x += global_distance
-	elif (command == "orientation_x"):
-		limbPose.position.x -= global_distance
-	elif (command == "keep"):
-		pass
-	elif (command == "further"):
-		if (global_distance < 0.3):
-			global_distance += global_change_factor
-			rospy.loginfo(global_distance)
-		else:
-			rospy.loginfo("can not increase more")
-		return
-	elif (command == "closer"):
-		if (global_distance > 0):
-			global_distance -= global_change_factor
-			if (global_distance < 0):
-				global_distance = 0
-			rospy.loginfo(global_distance)
-		else:
-			rospy.loginfo("can not decrease more")
-		return
-	else:
-		rospy.loginfo("unknown command")
-		return
 
 	if not checked:
 		rospy.loginfo("command is not checked, reject...")
 		return
 	checked = False
+	commandPositionPublisher.publish(data)
 	
-	newHeader = Header()
-	newHeader.frame_id = current_limb
-
-	newHeader.stamp = rospy.Time().now()
-
-	newPoseStamp = PoseStamped()
-	newPoseStamp.pose = limbPose
-	newPoseStamp.header = newHeader
-
-	commandPositionPublisher.publish(newPoseStamp)
 
 def subscribe():
-	initLimbPose()
-	rospy.Subscriber("/end_effector_command", String, callback)
+	rospy.Subscriber("/end_effector_command_pose_stamped", PoseStamped, callback)
 	rospy.Subscriber("end_effector_command_check", String, commandCheckCallback)
 	rospy.spin();
 	
 def main():
-	#rospy.loginfo("Initializing node control_command_subscriber... ")
 	rospy.init_node("ikfast_transform", anonymous=True)
 
 	try:
