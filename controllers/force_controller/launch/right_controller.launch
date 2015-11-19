@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
 
+  <!-- Take command line arguments -->
   <arg name="argv" default="" />
+
+  <!-- ROSBAG Recording -->
+  <arg name="record" default="false" />
 
   <!-- 1. To debug just add parameter debut:=true in command window -->
   <arg name="debug" default="false"/>
@@ -34,7 +38,14 @@
   </node>
 
   <!-- 8. Run control basis controller with force and moment basis controllers -->
-  <node name="right_force_controller" pkg="force_controller" type="controller" output="screen" respawn="false" args="$(arg argv)" launch-prefix="$(arg gdb_arg)">  >
+  <node name="right_force_controller" pkg="force_controller" type="controller" output="screen" respawn="false" args="$(arg argv)" launch-prefix="$(arg gdb_arg)" >
   </node>
+
+  <!-- 9. Rosbag Record the Wrench Data-->
+ <group if="$(arg record)">
+   <node name="rosbag_wrench" pkg="rosbag" type="record"
+         args="record -o ${ROS_WORKSPACE}/src/birl_baxter/recorded_motions/motion_files/assembly/bag_analysis/ /robot/limb/right/endpoint_state">
+   </node>
+ </group>
    
 </launch>

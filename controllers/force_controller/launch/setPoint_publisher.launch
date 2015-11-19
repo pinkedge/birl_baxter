@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <!-- 1. To debug just add parameter debut:=true in command window -->
+  <arg name="debug" default="false"/>
+
+  <!-- 1. Load side we want to publish on -->
+ <param name="side" type="string" value="right" />
+
+  <!-- 3. launch-prefix runs gdb in xterm without running it automatically -->
+  <arg     if="$(arg debug)" name="gdb_arg" value="xterm -e gdb --args" />
+  <arg unless="$(arg debug)" name="gdb_arg" value="" />
+
+  <!-- 2. Run the setpoint_publisher node -->
+  <node name="right_set_point_publisher" pkg="force_controller" type="setPoint_pub" output="screen" respawn="true" args="2 0 1 0 -1 0.2 0.2 0.2 1 0 5 0 0.015 0.015 0.05" launch-prefix="$(arg gdb_arg)" >  
+  </node>
+
+</launch>

@@ -140,6 +140,10 @@ int main(int argc, char **argv)
     }
 
   // B. Initialize ROS data
+  // Get side Parameter
+  std::string side_="";
+  n.param<std::string>("side", side_, "right");
+
   // Create the publisher 
   ros::Publisher setPoint_pub = n.advertise<force_controller::setPoint>("/right/force_control/setPoint",1); 
 

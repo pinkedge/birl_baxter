@@ -652,15 +652,15 @@ namespace force_controller
   //****************************************************************************************************  
   void controller::updateGains(geometry_msgs::Vector3 gain, std::string type)
   {
-    for(unsigned int i=0; i<3; i++)
-      {
-        if(type == "force")
-          gFp_ = Eigen::Vector3d(gain.x, gain.y, gain.z);
-        else if(type == "moment")
-          gMp_ = Eigen::Vector3d(gain.x, gain.y, gain.z);
-        else
-          ROS_WARN("Could not recognize type of controller, using default gain value");
-      }
+
+
+    if(type == "force")
+      gFp_ = Eigen::Vector3d(gain.x, gain.y, gain.z);
+    else if(type == "moment")
+      gMp_ = Eigen::Vector3d(gain.x, gain.y, gain.z);
+    else
+      ROS_WARN("Could not recognize type of controller, using default gain value");
+
   }
 
   void controller::updateGains() {
@@ -773,11 +773,11 @@ namespace force_controller
   // computePrimitiveController(...)
   // Output: places commanded joint angles in update. 
   //************************************************************************************************************************************************************
-  bool controller::computePrimitiveController(std::vector<Eigen::VectorXd>& update, std::string type, Eigen::Vector3d setPoint, std::vector<double>& e)
+  bool controller::computePrimitiveController(Eigen::VectorXd& update, std::string type, Eigen::Vector3d setPoint, std::vector<double>& e)
   {
     // Init: Set vectors for actual and goal data
     Eigen::Vector3d curdata;
-    Eigen::VectorXd dq = Eigen::VectorXd::Zero(joints_.size());
+    Eigen::VectorXd dq = Eigen::VectorXd::Zero(joints_[0].size());
 
     // 1. Current data is obtained from getWrenchEndpoint
     curdata = extractWrench_Force_Moment(type);
@@ -796,23 +796,66 @@ namespace force_controller
 
     // 4. Save the result as the first vector element of update.
     // update.push_back(dq);
-    update[0]=dq;
+    update=dq;
     return true;
   }
 
+/*******************************************************************************************************
+ ** NullSpaceProjection()
+ ** This function projects the output of the subordinate
+ ** controller to the left null space of the dominant controller.
+ ** It is important to note that the dominant output is the update
+ ** produced by that controller but is not the updated position.
+ ** Ie the update might be 0.4 degrees and the position might be 90.4 degrees.
+ **
+ ** We multiply AngleUpdate2 * null_space_matrix and
+ ** place the result in NullSpaceProjMat
+ **
+ ** This controller consider a 6D/7D space, given that the input
+ ** and output vectors will always be the change in joint
+ ** coordinates, AngleUpdate2(q1,q2,q3,q4,q5,q6,q7).
+ **
+ ** From Platt's work, the null space operator, N, is defined as the moore-penrose generalized pseudoinverse:
+ **
+ ** N = I - [x_out * inv(x_out' * x_out) * x_out']: that is, the identity - *outer product / inner product).
+ ** From linear algebra the fraction of outer product/inner product is a projection unto the null space of the column space.
+ ** When we subtract the identity from it, we are projecting on the perpendicular space, the left null space.
+ **
+ ** N = I - [ 1/(q1^2 + q2^2 + q3^2 + q4^2 + q5^2 + q6) * |q1^2 q1q2 q13 ... q1q6 |
+ **														|q2q1 q2^2 ...     q2q6 |
+ **														|q6q1  ... ...      q6^2|
+ **
+ ** Notice that the identity matrix is subtracted from
+ ** the outer product normalized by the dot product of x_out.
+ **
+ ** Variables:
+ **
+ ** SPECIAL CASE: there may be a time where the dominant controller is all zeros
+ ** If this is the case, we need to code the value of denominator to 1, otherwise
+ ** there will be a division by zero.
+ **
+ ** Input:  updates is a vector with two eigen vector entries: [0] for the dominant controller and [1] for the subordiante controller.
+ ** Output: a sensor_msgs::JointState structure with new angle update+current angles
+ ********************************************************************************************************/
   bool controller::NullSpaceProjection(std::vector<Eigen::VectorXd> updates, sensor_msgs::JointState& dq)
   {
-    Eigen::MatrixXd outer;
-    Eigen::VectorXd dq2, dq1;
+    Eigen::MatrixXd outer; outer.resize( joints_[0].size(),joints_[0].size() );
+    Eigen::VectorXd dq2 = Eigen::VectorXd::Zero(joints_[0].size());
+    Eigen::VectorXd dq1 = Eigen::VectorXd::Zero(joints_[0].size());
+
+    // 1. Compute inner product
     double inner = updates[0].dot(updates[0]);
-    if(inner = 0)
+    if(inner==0)
       inner = 1.0;
 
+    // 2. Compute outer product
     outer = (updates[0] * updates[0].transpose()) / inner;
 
+    // Project output of subordinate controller on null space projection of dom ctrl
     dq2 = (Eigen::MatrixXd::Identity(7, 7) - outer) * updates[1];
 
-    for(unsigned int i =0; i<joints_.size(); i++)
+    // Add this project to current dominant controller output
+    for(unsigned int i =0; i<joints_[0].size(); i++)
       {
         dq1(i) = updates[0](i) + dq2(i);
         if( isnan(dq1(i)) )
@@ -822,7 +865,9 @@ namespace force_controller
           }
       }
 
+    // Add this joint angle update to current robot joint angles using fill and place in sensor_msgs::JointState
     dq = fill(dq1);
+
     return true;
   }
 
@@ -846,7 +891,7 @@ namespace force_controller
 
     // Initialize vectors
     js.resize(7);                    // Will keep current 7 joint angles here
-    dqs.resize(1);                   // Here we will only keep 1 copy of joint angle updates
+    dqs.resize(2);                   // To delta angle updates: dom and sub ctrlrs
     dqs[0]=Eigen::VectorXd::Zero(7); // TODO might want to change dqs to simply be an eigen vector. change the prototype of primitiveController and NullSpaceProjection. Is there a need for the vector and the history?
     error.clear();
 
@@ -857,11 +902,11 @@ namespace force_controller
     // From command line or roslaunch
     if(sP_.domGains.size()!=0)
         updateGains(sP_.domGains[0],sP_.domType);
-    else if(sP_.subGains.size()!=0)
-     updateGains(sP_.subGains[0], sP_.subType);
+    if(sP_.subGains.size()!=0)
+      updateGains(sP_.subGains[0], sP_.subType);
 
     // Update from Dynamic Reconfigure GUI
-    else if(force_error_constantsFlag)
+    if(force_error_constantsFlag)
       updateGains();
 
     // Wait for the first joint angles readings. Otherwise cannot compute torques.
@@ -881,14 +926,22 @@ namespace force_controller
           ROS_INFO("Calling primitive controller %d", i);
 
           // Extract the force/moment setpoint
-          setPoint_[i] << sP_.domDes[i].x, sP_.domDes[i].y, sP_.domDes[i].z;
-          if(i==0) type=sP_.domType;
-          else     type=sP_.subType;
+          if(i==0) 
+            {
+              type=sP_.domType;
+              setPoint_[i] << sP_.domDes[0].x, sP_.domDes[0].y, sP_.domDes[0].z;
+            }
+          else
+            {
+              type=sP_.subType;
+              setPoint_[i] << sP_.subDes[0].x, sP_.subDes[0].y, sP_.subDes[0].z;
+            }
 
 
-          // Takes req.desired input  type. 
-          // Outputs a delta joint angle in dqs and the error. 
-          if(!computePrimitiveController(dqs, type, setPoint_[i], error))
+          // Takes vector of eigen's: setPoint_ as an input
+          // Outputs a delta joint angle in vector of eigens dqs[i] and the error. 
+          // [0]=dominant controller, [1] = subordinate controller
+          if(!computePrimitiveController(dqs[i], type, setPoint_[i], error))
             {
               ROS_ERROR("Could not compute angle update for type: %s", type.c_str());
               return false;
@@ -898,7 +951,8 @@ namespace force_controller
       // B2. 2 Controllers: call compound controllers
       if(sP_.num_ctrls > 1)
         {
-          // Projects dqs update to nullspace of primary controller and compute new dqs in res.update_angles. 
+          // Take 2 angle updates in dqs. Project the subordinate update to the dominant ctrl's nullspace. 
+          // Places new angle update+current angles in the sensor_msgs::JointState update_angles_, ready to pass to position controller
           if(!NullSpaceProjection(dqs, update_angles_))
             {
               ROS_ERROR("Could not get null space projection");
@@ -906,7 +960,7 @@ namespace force_controller
             }
         }
     
-      // Add delta joint angles to current joint angles through fill, store in update_angles.position
+      // For only one (dominant controller) Add delta joint angles to current joint angles through fill, store in update_angles.position
       else
         update_angles_ = fill(dqs[0]);         
 

@@ -156,7 +156,7 @@ namespace force_controller
 	  bool JacobianProduct(std::string type, Eigen::VectorXd& update);
 	  bool JacobianErrorProduct(std::string type, Eigen::VectorXd& update); // changed the order of multiplication by gains to see if it improves controller.
 	  bool NullSpaceProjection(std::vector<Eigen::VectorXd> updates, sensor_msgs::JointState& dq);
-	  bool computePrimitiveController(std::vector<Eigen::VectorXd>& update, std::string type, Eigen::Vector3d setPoint, std::vector<double>& e);
+	  bool computePrimitiveController(Eigen::VectorXd& update, std::string type, Eigen::Vector3d setPoint, std::vector<double>& e);
 
 
 
