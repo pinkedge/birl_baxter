@@ -11,7 +11,7 @@
 
 // STD Libs
 #include <string>
-
+#define RATE 0.66 // Parameter to set publication rate
 //---------------------------------------------------------------------------------------------------
 // Can get setPiont from launch file, command line, or another publisher--this yet to be implemented.
 // setPoint looks like:
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
     }
 
   // Set ROS Rate for while loop
-  ros::Rate rate(1); // 5 Hz
+  ros::Rate rate(RATE); 
 
   while(ros::ok())
     {

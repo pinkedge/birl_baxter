@@ -8,11 +8,12 @@
 #include <geometry_msgs/Wrench.h>
 #include <geometry_msgs/Vector3.h>
 #include <sensor_msgs/JointState.h>
+#include <force_controller/setPoint.h> // setPoint desired type
 
 // Dynamic Reconfigure
 #include <dynamic_reconfigure/server.h>
 #include <force_controller/force_error_constantsConfig.h>
-#include "/home/vmrguser/ros/indigo/baxter_ws/devel/include/force_controller/force_error_constantsConfig.h"
+//#include "/home/vmrguser/ros/indigo/baxter_ws/devel/include/force_controller/force_error_constantsConfig.h"
 
 // Baxter Message Types
 #include <baxter_core_msgs/JointCommand.h>  // To command the joints 
@@ -25,7 +26,7 @@
 #include <eigen3/Eigen/Core>
 
 // Force Control and Kinematics
-#include <force_controller/forceControl.h>
+#include <force_controller/forceControl.h> // Service
 #include <force_controller/kinematics.h>
 
 // Forcing Core Files (http://processors.wiki.ti.com/index.php/Multithreaded_Debugging_Made_Easier_by_Forcing_Core_Dumps)
@@ -42,20 +43,25 @@ using std::string;
 
 //-----------------------------------------------------------------------------------------------------------------------------
 // Programs design parameters
-//-----------------------------------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------
 /*** Flags for ROS Communication Objects ***/
 #define JOINTS_SUB_F 1 // Subscribes to /gravity_compensation_torques to get joints, velocities, torques, and gravity compensations
 #define WRENCH_SUB_F 1 // Subscribes to /endpoint_state to get the endpoint wrench
+#define SETPNT_SUB_F 1 // Subscribes to /side/force_control/setPoint
+//----------------------------------------------------------------------------------------
 #define JOINTS_PUB_F 1 // Publishes to /joint_command to move the arm to a reference set point.
 #define FILT_W_PUB_F 1 // Publishes a filtered wrench value 
-#define CTRBAS_SRV_F 1 // Publishes the control basis service server. When a client call is sent, force_control begins. 
-#define DYN_RECONF_F 1
+//----------------------------------------------------------------------------------------
+#define CTRBAS_SRV_F 0 // Publishes the control basis service server. When a client call is sent, force_control begins. 
+#define DYN_RECONF_F 1 // Dynamic reconfigure flag
+//----------------------------------------------------------------------------------------
 
 /*** Inner Control Loop ***/ 
 #define JNTPOS_TORQUE_CONTROLLER 1     // If true, set point is joint angles, otherwise joint torques.
 
 /*** Time  Rates ***/
-#define ROS_RATE     1000              // These rates are very important. ROS_RATE controls while loop timing. 
+#define FC_ROS_RATE     1000              // These rates are very important. ROS_RATE controls while loop timing. 
+#define POS_ROS_RATE    20 
 #define TIME_OUT     1.5               // This timeout determines how long the inner pos_Ctrl will run. Very important. 
                                        // If too long and robot is in contact with surface, forces will rise dangerously.
                                        // We want to add delta joint angles to the latest joint position. To do this, we act as fast as possible, or else we'll be adding dq's to old joint valus. Also, joint_command works best at a fast rate.
@@ -105,147 +111,7 @@ namespace force_controller
   public:
    
     // Constructor
-    controller(ros::NodeHandle node): node_handle_(node)
-	  {
-      // Initialize counters and Flags
-      n_ = 0;	m_ = 0;	no_ = 0, errorCtr_=1; error_norm_=0.0;
-
-      // Local 
-      int nj;
-      double gain;
-      // Default parameter Values
-      double alpha  = 0.9950;           // Orig: 0.987512
-      double oneDeg = PI/180;
-      int    force_error_threshold=1;  
-
-      /*** Get Parameter Values ***/
-      // Get Parameter Values from the parameter server. Set in the roslaunch file or by hand.
-
-      // Position Controller precision and filtering
-      node_handle_.param<double>("joint_precision", tolerance_, oneDeg);
-      node_handle_.param<double>("filter", alpha_, alpha);  
-
-      // Force Controller Error Tolerance
-      node_handle_.param<double>("error_threshold",force_error_threshold_,force_error_threshold);
-
-      // Strings
-      node_handle_.param<std::string>("side", side_, "right");
-      node_handle_.param<std::string>("tip_name", tip_name_, "right_gripper");
-
-      // Hack: currently we cannot guarantee the order in which spinner threads are called.
-      // There are occassions in which getWrenchEndpoint is called before updateJointAngles, in this case, getTorqueOffset is called, which needs joints. A segfault is issued.
-      std::vector<double> tmp;
-      //for(int i=0; i<7; i++) tmp.push_back(0.0);
-      tmp.resize(7);
-      tmp[0]=0.07; tmp[1]=-0.9; tmp[2]=1.15; tmp[3]=1.92; tmp[4]=-0.6; tmp[5]=1.01; tmp[6]=0.48;
-
-      // Right Arm
-      if(strcmp(side_.c_str(),"right")) joints_.push_back(tmp);
-      // Left arm
-      else 
-        {
-          tmp[0]=0.0; tmp[1]=-0.9; tmp[2]=1.1; tmp[3]=1.92; tmp[4]=-0.65; tmp[5]=1.00; tmp[6]=-0.48;
-          joints_.push_back(tmp);
-        }
-          
-      // Proportional Gains
-      node_handle_.param<double>("gain_force", gain, 0.0005); // Orig value: 0.00005)
-      // gFp_ = Eigen::Vector3d::Constant(gain);
-      gFp_ << k_fp0, k_fp1, k_fp2; 
-
-      node_handle_.param<double>("gain_moment", gain, 0.0000035);
-      gMp_ = Eigen::Vector3d::Constant(gain);
-
-      // Derivative Gains
-      gFv_ << k_fv0, k_fv1, k_fv2; 
-      gMv_ << k_mv0, k_mv1, k_mv2; 
-
-      // Other vectors
-      setPoint_   = Eigen::VectorXd::Zero(3);
-      cur_data_   = Eigen::VectorXd::Zero(6);  cur_data_f_ = Eigen::VectorXd::Zero(6);
-      error_      = Eigen::VectorXd::Zero(6);  error_t_1   = Eigen::VectorXd::Zero(6);
-      derror_     = Eigen::VectorXd::Zero(6);
-
-      // State
-      exe_ = false;	jo_ready_ = false;
-
-      /***************************************************** Publisher, subscriber and Service Advertisement *******************************************************************/
-      // Set all the flag values ros ros communication objects
-      rosCommunicationCtr=0;
-      joints_sub_flag         =JOINTS_SUB_F; 
-      wrench_sub_flag         =WRENCH_SUB_F;
-      joint_cmd_pub_flag      =JOINTS_PUB_F;
-      filtered_wrench_pub_flag=FILT_W_PUB_F;
-      ctrl_server_flag        =CTRBAS_SRV_F; 
-      dynamic_reconfigure_flag=DYN_RECONF_F; 
-
-      // 1. Subscription object to get current joint angle positions, velocities, joint torques, and gravitational compensation torques.
-      if(joints_sub_flag)
-        {
-          joints_sub_ = root_handle_.subscribe<baxter_core_msgs::SEAJointState>("/robot/limb/" + side_ + "/gravity_compensation_torques", 1, &controller::getBaxterJointState, this);
-          rosCommunicationCtr++;
-        }
-
-      // 2. Subscription object to get the wrench endpoint state. 
-      if(wrench_sub_flag)
-        {
-          wrench_sub_ = root_handle_.subscribe<baxter_core_msgs::EndpointState>("/robot/limb/" + side_ + "/endpoint_state", 1, &controller::getWrenchEndpoint, this);
-          rosCommunicationCtr++;
-        }
-
-      // 3. Publication object to publish commanded joint positions throught the joint_command topic.
-      if(joint_cmd_pub_flag)
-        {
-          joint_cmd_pub_ = node_handle_.advertise<baxter_core_msgs::JointCommand>("/robot/limb/" + side_ + "/joint_command", 10, false); // May want to keep a small num of points
-          ros::Duration(3.0).sleep(); ROS_INFO("Initial Pose initialized for %s arm, tolerance = %f", side_.c_str(), tolerance_);	
-          rosCommunicationCtr++;
-        }
-
-      // 4. Publication object to publish filtered wrench information.
-      if(filtered_wrench_pub_flag)
-        {
-          filtered_wrench_pub_ = node_handle_.advertise<baxter_core_msgs::EndpointState>("/robot/limb/" + side_ + "/filtered_wrench", 20, false);
-          rosCommunicationCtr++;
-        }
-
-      // 5. Service Server Object. Runs the force_controller when a desired primitive controllers is selected along with the desired setpoint. 
-      if(ctrl_server_flag)
-        {
-          ctrl_server_ = root_handle_.advertiseService("/" + side_ + "/force_controller", &controller::force_controller, this); 
-          rosCommunicationCtr++;
-        }
-      
-      // Create the kinematic chain/model through kdl from base to right/left gripper
-	    kine_model_ = Kinematics::create(tip_name_, nj);
-
-      // Clear torque and gravitational torque vectors.
-      torque_.clear();
-      tg_.clear();
-
-      // If we have our 7DoF, then let's set the values of our joint names in joints_names_ as: s0s1e0e1w0w1w2. This is the order of /robot/limb/right/gravity_compensation_torques but not of /robot/limb/right/joint_commad
-      if(nj == 7)
-        {
-          fillJointNames();
-          init_ = true;
-        }
-
-      // Print successful exit
-      ros::Duration(1.0).sleep();
-
-      // Time Rates
-      timeOut_        =TIME_OUT;
-      while_loop_rate_=ROS_RATE;
-
-      /*** Filtering ***/
-      // Inner Control Loop
-      jntPos_Torque_InnerCtrl_Flag_=JNTPOS_TORQUE_CONTROLLER;
-
-        // Wrench Filtering
-      wrenchFilteringFlag=1;
-      initialFiltering=1;
-
-      ROS_INFO("Force controller on baxter's %s arm is ready", side_.c_str());
-	  }
+    controller(ros::NodeHandle);
 
     // Destructor
     ~controller() { }
@@ -254,12 +120,14 @@ namespace force_controller
     int dynamic_reconfigure_flag;
 
     // Public Methods
+    bool force_controller();                  // **Force Controller. Main method
+
 	  inline bool start() { return init_; }
     inline int get_rosCommunicationCtr() { return rosCommunicationCtr; }
+    inline double get_fcLoopRate() {return fc_while_loop_rate_; }
     inline void rosCommunicationCtrUp() { rosCommunicationCtr++; }
     /*** Dynamic Reconfigure Callback ***/
     // void callback(force_error_constants::force_error_constantsConfig &config, uint32_t level); // placed it as global in .cpp
-    
 
   private:
 
@@ -271,14 +139,14 @@ namespace force_controller
     /*** ROS Updates for subscribers  and Parameters ***/
     void getWrenchEndpoint(const baxter_core_msgs::EndpointStateConstPtr& state);    // Eigen::Vector3d getWrenchEndpoint(....
 	  void getBaxterJointState(const baxter_core_msgs::SEAJointStateConstPtr& state);  // Used to get joint positions, velocities, and efforts from Baxter. 
+    void getSetPoint(const force_controller::setPointConstPtr& state);               // Used to get the desired set point for the control basis
 
     void updateGains();                                                              // used to change gFp_ and gMp_ after params updated with rqt_reconfig
-	  void updateGains(std::vector<geometry_msgs::Vector3> gain, std::vector<std::string> type);
+	  void updateGains(geometry_msgs::Vector3 gain, std::string type);
     
     /*** Controllers ***/
     bool isMoveFinish(bool& result);                                                  // Used by position control to check if goal has been reached.
     bool position_controller(sensor_msgs::JointState qd, ros::Time);                  // Position Controller
-    bool force_controller(forceControl::Request &req, forceControl::Response &res);   // Force Controller
     void torque_controller(Eigen::VectorXd delT, ros::Time t0);                       // Torque controller
 
     /*** Force Control Support Methods and Null Space Methods ***/
@@ -292,7 +160,7 @@ namespace force_controller
 
 
     /*** Inline Methods ***/
-	  inline void ini()
+	  inline void openFiles()
 	  {
       std::ostringstream num2;
       num2 << "s" << m_ << "__" << "Joints_" << side_ << "_sim.txt";
@@ -339,12 +207,12 @@ namespace force_controller
       if(position_derror_flag)
         {
           for(unsigned int i=0; i<3; i++)     
-            derror_(i+offset) = (error_(i+offset) - error_t_1(i+offset))*while_loop_rate_;          // Instead of dividing by time, multiply by the rate.
+            derror_(i+offset) = (error_(i+offset) - error_t_1(i+offset))*fc_while_loop_rate_;          // Instead of dividing by time, multiply by the rate.
         }
       else
         {
           for(unsigned int i=0; i<3; i++)     
-            derror_(i+offset) = (velocity_[0][i+offset] - velocity_[1][i+offset])*while_loop_rate_; // Instead of dividing by time, multiply by the rate.
+            derror_(i+offset) = (velocity_[0][i+offset] - velocity_[1][i+offset])*fc_while_loop_rate_; // Instead of dividing by time, multiply by the rate.
         }
 
       if(errorCtr_==1)
@@ -378,6 +246,7 @@ namespace force_controller
     // Publishers, subscribers, and services.
 	  ros::Subscriber    joints_sub_;                      // Subscription to get joint angles. 
     ros::Subscriber    wrench_sub_;                      // Used to subscribe to the wrench endpoint. 
+    ros::Subscriber    setPoint_sub_;
 
     ros::Publisher     joint_cmd_pub_;                   // Publication to command joints 
     ros::Publisher     filtered_wrench_pub_;             // Publish a filtered wrench number
@@ -390,13 +259,13 @@ namespace force_controller
 
     int joints_sub_flag;
     int wrench_sub_flag;
+    int setPoint_sub_flag;
 
     int joint_cmd_pub_flag;
     int filtered_wrench_pub_flag;
 
     int ctrl_server_flag;
     // int dynamic_reconfigure_flag;                       // Currently dynamic_reconfigure code sits outside the class in main, so this will be publc.
-
 
     // Kinematics model pointers.
 	  Kinematics::Ptr kine_model_;
@@ -410,14 +279,16 @@ namespace force_controller
     Eigen::Vector3d gFv_, gMv_; // Derivative gains
 	  Eigen::VectorXd error_, error_t_1, derror_;
     double error_norm_;
-    Eigen::VectorXd setPoint_;
+    std::vector<Eigen::VectorXd> setPoint_; // Keep [0] for dominant and [1] for subordiante
+    force_controller::setPoint sP_;         // Contains des values, gains for up to 2 cntrls.
     Eigen::VectorXd cur_data_, cur_data_f_;
     std::deque<Eigen::VectorXd> wrenchVec, wrenchVecF; 
 	  std::vector<double> j_t_1_, jv_t_1_, tm_t_1_, tg_t_1_; // Joints, velocity, torques, gravitational torques. 
 	  std::vector<std::vector<double> > joints_, velocity_, torque_, tg_;
 
     // Position Controller Vars (used with controller::position_controller
-	  baxter_core_msgs::JointCommand qgoal_;
+    sensor_msgs::JointState update_angles_;
+	  baxter_core_msgs::JointCommand qgoal_; // Smooth filtered goal with alpha
 	  std::vector<double> goal_, qd_, qe_; // Comes from position_controller/include/initialPose.h. 
                                          // joints_ was removed from here and instead we used the native std::vector<std::vector<double> > joints_ always using index[0] instead.
 
@@ -440,17 +311,14 @@ namespace force_controller
     int wrenchFilteringFlag;  // in getWrenchEndpoint()
     int initialFiltering;
 
-    // 
-
-
     // File Streams
 	  std::ofstream save_;
 
     // Time
 	  ros::Time to_;
     double timeOut_;
-    int while_loop_rate_;
-
+    double fc_while_loop_rate_;
+    double pos_while_loop_rate_;
   };
 }
 #endif /* REPLAY_ */

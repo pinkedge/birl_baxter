@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
+
+  <arg name="argv" default="" />
+
   <!-- 1. To debug just add parameter debut:=true in command window -->
   <arg name="debug" default="false"/>
 
@@ -31,7 +34,7 @@
   </node>
 
   <!-- Run control basis controller with force and moment basis controllers -->
-  <node name="right_force_controller" pkg="force_controller" type="controller" output="screen" respawn="false" args="right" launch-prefix="$(arg gdb_arg)">  >
+  <node name="right_force_controller" pkg="force_controller" type="controller" output="screen" respawn="false" args="$(arg argv)" launch-prefix="$(arg gdb_arg)">  >
   </node>
    
 </launch>
