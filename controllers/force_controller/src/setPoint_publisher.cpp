@@ -145,7 +145,7 @@ int main(int argc, char **argv)
   n.param<std::string>("side", side_, "right");
 
   // Create the publisher 
-  ros::Publisher setPoint_pub = n.advertise<force_controller::setPoint>("/right/force_control/setPoint",1); 
+  ros::Publisher setPoint_pub = n.advertise<force_controller::setPoint>("/" + side_ + "/force_control/setPoint",1); 
 
   // Populate the setPoint msg
   force_controller::setPoint sP;

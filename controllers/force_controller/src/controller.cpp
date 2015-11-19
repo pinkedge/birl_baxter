@@ -39,7 +39,7 @@ namespace force_controller
       int nj;
       double gain;
       // Default parameter Values
-      double alpha  = 0.9950;           // Orig: 0.987512
+      double alpha  = 0.50;           // Orig: 0.987512
       double oneDeg = PI/180;
       int    force_error_threshold=1;  
 
@@ -54,7 +54,7 @@ namespace force_controller
       node_handle_.param<double>("error_threshold",force_error_threshold_,force_error_threshold);
 
       // Strings
-      node_handle_.param<std::string>("side", side_, "right");
+      root_handle_.param<std::string>("side", side_, "right");
       node_handle_.param<std::string>("tip_name", tip_name_, "right_gripper");
 
       // Hack: currently we cannot guarantee the order in which spinner threads are called.
@@ -328,12 +328,16 @@ namespace force_controller
     realTorque = Eigen::VectorXd::Zero(7);
     // wrench     = Eigen::VectorXd::Zero(6);
     
+    // This method should only be called if the joint angles have already been read. Hence:
+    // if(jo_ready_)
+    //   {
+
     // Select a method. False if you want a Jacobian computation for torques->wrench. True to get wrench from topic.
     if(wrench_sub_flag) {
       
       // Get the force and torque from the callback argument state
       cur_data_ << state->wrench.force.x, state->wrench.force.y, state->wrench.force.z,
-                   state->wrench.torque.x,state->wrench.torque.y,state->wrench.torque.z;
+        state->wrench.torque.x,state->wrench.torque.y,state->wrench.torque.z;
 
       // Offset Removal. TODO: Pending to do any such analysis, but it would go here.
       // 
@@ -433,6 +437,8 @@ namespace force_controller
         filtered_wrench_pub_.publish(fw);
         // ROS_INFO_STREAM("Publishing the filtered wrench: " << fw.wrench << std::endl);
       }
+
+    //}
   }
 
   //*****************************************************************************
@@ -785,7 +791,7 @@ namespace force_controller
     // 2. Error between actual and desired wrench is computed, placed in error_
     error_norm_ = computeError(type, curdata, setPoint);
     e.push_back(error_norm_);  // Keep track of norm. Helps to identify direction of controller
-    ROS_INFO_STREAM("Error Norm: " << error_norm_);
+    ROS_ERROR_STREAM("Error Norm: " << error_norm_);
 	
     // 3. Compute the product of the error and the jacobian to produce the delta joint angle update placed in dq.
     if(!JacobianProduct(type, dq)) 
@@ -1073,7 +1079,7 @@ namespace force_controller
      
         // Print commanded joint angles again and their current time 
         ros::Time tnow = ros::Time::now();
-        ROS_INFO("Commanded Joint Angle:\
+        ROS_INFO_ONCE("Commanded Joint Angle:\
               \n------------------------------\n<%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f> at time: %f\n------------------------------",
              qgoal_.command[0],qgoal_.command[1],qgoal_.command[2],
              qgoal_.command[3],qgoal_.command[4],qgoal_.command[5],

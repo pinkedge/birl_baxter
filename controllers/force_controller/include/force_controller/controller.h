@@ -76,13 +76,12 @@ namespace force_controller
   static const int LEFT = 0, RIGHT = 1;
 
   // Proportional Gain Parameters for joint controller Const: (0.0050)
-  double pg= 0.02;
-  double k_fp0=pg, k_fp1=pg, k_fp2=pg, 
-    k_mp0=0.15, k_mp1=0.10, k_mp2=0.4; // Also sed with dynamc_reconfigure
+  double k_fp0=0.2, k_fp1=0.0001, k_fp2=0.1, 
+    k_mp0=0.015, k_mp1=0.0015, k_mp2=0.015; // Also sed with dynamc_reconfigure
   
 
   // Derivative Gain Parameters for joint controller Const: Const: 0.0025
-  double dg=0; // 0.0025;
+  double dg=0.25;
   double k_fv0=dg, k_fv1=dg, k_fv2=dg, k_mv0=dg, k_mv1=dg, k_mv2=dg;
 
   bool force_error_constantsFlag = false;
@@ -204,7 +203,7 @@ namespace force_controller
       // Compute the derivative error using a finite difference approximation. 
       // TODO: should try the symmetric difference quotient. (error+1-error_1)/2rate
       // TODO: Can filter the derror signal.
-      int position_derror_flag=1;
+      int position_derror_flag=0;
       if(position_derror_flag)
         {
           for(unsigned int i=0; i<3; i++)     
