@@ -76,8 +76,9 @@ namespace force_controller
   static const int LEFT = 0, RIGHT = 1;
 
   // Proportional Gain Parameters for joint controller Const: (0.0050)
-  double pg= 0; // 0.0050;
-  double k_fp0=0.020, k_fp1=pg, k_fp2=pg, k_mp0=pg, k_mp1=pg, k_mp2=pg; // gain constants. used with dynamc_reconfigure
+  double pg= 0.02;
+  double k_fp0=pg, k_fp1=pg, k_fp2=pg, 
+    k_mp0=0.15, k_mp1=0.10, k_mp2=0.4; // Also sed with dynamc_reconfigure
   
 
   // Derivative Gain Parameters for joint controller Const: Const: 0.0025
