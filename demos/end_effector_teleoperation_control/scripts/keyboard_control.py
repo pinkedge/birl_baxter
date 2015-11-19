@@ -31,7 +31,6 @@ def map_keyboard():
 	current_limb = 0
 	rospy.loginfo(limb[current_limb] + " limb under control...")
 	rospy.loginfo('press ? to print help')
-	rate = rospy.Rate(10)
 	while not rospy.is_shutdown():
 		c = baxter_external_devices.getch()
 		if c:
@@ -54,18 +53,17 @@ def map_keyboard():
 			else:
 				rospy.loginfo("invalid command: " + c)
 				rospy.loginfo('press ? to print help')
-			rate.sleep()
 
 
 def main():
-	rospy.loginfo("Initializing node keyboard_control... ")
+	#rospy.loginfo("Initializing node keyboard_control... ")
 	rospy.init_node("keyboard_control")
 
 	try:
 		map_keyboard()
 	except():
 		pass
-	rospy.loginfo("Done.")
+	#rospy.loginfo("Done.")
 	
 def printHelper(keyboard_binding):
 	print 'key maping:'

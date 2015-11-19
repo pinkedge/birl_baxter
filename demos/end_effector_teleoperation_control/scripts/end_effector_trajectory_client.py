@@ -49,9 +49,9 @@ def callback(data):
 
     
 def listener():
-    rospy.loginfo("Initializing node end_effector_trajectory_client... ")
+    #rospy.loginfo("Initializing node end_effector_trajectory_client... ")
     rospy.init_node('end_effector_trajectory_client', anonymous=True)
-    rospy.loginfo("Getting robot state... ")
+    #rospy.loginfo("Getting robot state... ")
     fine = False
     rate = rospy.Rate(1)
     while not fine | rospy.is_shutdown():
@@ -68,7 +68,7 @@ def listener():
         return
 
     rospy.Subscriber("end_effector_command_solution", JointCommand, callback)
-    rospy.loginfo("end_effector_trajectory_client subscribing...")
+    #rospy.loginfo("end_effector_trajectory_client subscribing...")
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
