@@ -45,6 +45,7 @@ namespace force_controller
 
       /*** Get Parameter Values ***/
       // Get Parameter Values from the parameter server. Set in the roslaunch file or by hand.
+      // node_handle_ access node namespace. root_handle_ access global namespace.
 
       // Position Controller precision and filtering
       node_handle_.param<double>("joint_precision", tolerance_, oneDeg);
@@ -1232,7 +1233,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "control_basis");
 
-  // Create a Private Name (not global name). Will use <node_name>/my_private_namespace/my_private_topic in front of any topic/services/parameter created with this handle.
+  // Create a node namespace. Ie for service/publication: <node_name>/topic_name or for parameters: <name_name>/param_name 
   ros::NodeHandle node("~"); 
 
   // Instantiate the controller

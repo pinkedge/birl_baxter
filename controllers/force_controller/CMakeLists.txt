@@ -60,22 +60,29 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 add_library(mykinematics src/kinematics.cpp)
 target_link_libraries(mykinematics ${catkin_LIBRARIES})
 
-# Force Controller Executable (including a service server)
-add_executable(controller src/controller.cpp)
+# 1a. Force Controller Service Executable (including a service server)
+add_executable       (controller src/controller.cpp)
 target_link_libraries(controller ${catkin_LIBRARIES})
-add_dependencies(mykinematics ${catkin_EXPORTED_TARGETS})
-add_dependencies(controller %{PROJECT_NAME}_gencfg) # Makes sure dyn_rec headers are built before use.
-target_link_libraries(controller ${catkin_LIBRARIES} mykinematics) # lins kin lib.
+add_dependencies     (controller %{PROJECT_NAME}_gencfg) # Builds dyn_rec headers before use.
+add_dependencies     (mykinematics ${catkin_EXPORTED_TARGETS})
+target_link_libraries(controller ${catkin_LIBRARIES} mykinematics) # links kin lib.
 
-# Force Controller Service Client Executable
-add_executable(force_control_srv_client  src/force_control_srv_client/force_control_srv_client.cpp)
+# 1b. Force Controller Service Client Executable
+add_executable       (force_control_srv_client  src/force_control_srv_client/force_control_srv_client.cpp)
 target_link_libraries(force_control_srv_client ${catkin_LIBRARIES})
-add_dependencies(force_control_srv_client %{PROJECT_NAME}_generate_messages_cpp)
+add_dependencies     (force_control_srv_client %{PROJECT_NAME}_generate_messages_cpp)
 
-# Force Controller Set Point Publisher
-add_executable(setPoint_pub src/setPoint_publisher.cpp)
+# 2a. Force Controller Publisher Subscriber Executable (including a service server)
+add_executable       (force_contrl_pubsub src/force_contr_pubsub.cpp)
+target_link_libraries(force_contrl_pubsub ${catkin_LIBRARIES})
+add_dependencies     (mykinematics ${catkin_EXPORTED_TARGETS})
+add_dependencies     (force_contrl_pubsub %{PROJECT_NAME}_gencfg)    # Builds dyn_rec headers before use.
+target_link_libraries(force_contrl_pubsub ${catkin_LIBRARIES} mykinematics) # lins kin lib
+
+# 2b. Force Controller Set Point Publisher
+add_executable       (setPoint_pub src/setPoint_publisher.cpp)
 target_link_libraries(setPoint_pub ${catkin_LIBRARIES})
-add_dependencies(setPoint_pub %{PROJECT_NAME}_generate_message_cpp)
+add_dependencies     (setPoint_pub %{PROJECT_NAME}_generate_message_cpp)
 
 # Install
 install(DIRECTORY include/${PROJECT_NAME}/
