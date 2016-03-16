@@ -55,7 +55,7 @@ namespace force_controller
       node_handle_.param<double>("error_threshold",force_error_threshold_,force_error_threshold);
 
       // Strings
-      root_handle_.param<std::string>("side", side_, "right");
+      node_handle_.param<std::string>("side", side_, "right");
       node_handle_.param<std::string>("tip_name", tip_name_, "right_gripper");
 
       // Hack: currently we cannot guarantee the order in which spinner threads are called.
@@ -142,13 +142,6 @@ namespace force_controller
           rosCommunicationCtr++;
         }
 
-      // 6. Service Server Object. Runs the force_controller when a desired primitive controllers is selected along with the desired setpoint. 
-      /* if(ctrl_server_flag) */
-      /*   { */
-      /*     ctrl_server_ = root_handle_.advertiseService("/" + side_ + "/force_controller", &controller::force_controller, this);  */
-      /*     rosCommunicationCtr++; */
-      /*   } */
-      
       // Create the kinematic chain/model through kdl from base to right/left gripper
 	    kine_model_ = Kinematics::create(tip_name_, nj);
 
@@ -1272,17 +1265,18 @@ int main(int argc, char** argv)
   /*** Different Communication Modes ***/
   while(ros::ok())
     {
+      // 1. nonBlocking spinOnce
       ros::spinOnce();
       myControl.force_controller();
       rate.sleep();
     }
   
-  // 1. AsyncSpinner
+  // 2. AsyncSpinner - nonBlocking
   //ros::AsyncSpinner spinner(myControl.get_rosCommunicationCtr());
   //spinner.start();
   //ros::waitForShutdown(); 
 
-  // 2. MultiThreadedSpinner
+  // 3. MultiThreadedSpinner - nonBlocking
   // ros::MultiThreadedSpinner spinner(myControl.get_rosCommunicationCtr()); // One spinner per ROS communication object: here we use it for 
                                                           // 1. Publish joint commands
                                                           // 2. Subsribe to current joint Angles
@@ -1293,7 +1287,7 @@ int main(int argc, char** argv)
   //spinner.spin();
   //ros::waitForShutdown(); 
 
-  // // 3. Blocking Spin
+  // 4. Blocking Spin
   // ros::spin();
   // ros::waitForShutdown();
 

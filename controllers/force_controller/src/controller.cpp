@@ -1061,7 +1061,6 @@ namespace force_controller
               \n------------------------------\n<%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f> at time: %f\n------------------------------",
              qgoal_.command[0],qgoal_.command[1],qgoal_.command[2],qgoal_.command[3],
              qgoal_.command[4],qgoal_.command[5],qgoal_.command[6],(tnow-t0).toSec());
-
     // Publish initial joint command (/robot/limb/right/joint_command).
     // Check if goal is reached. 
     joint_cmd_pub_.publish(qgoal_);
@@ -1079,14 +1078,16 @@ namespace force_controller
      
         // Print commanded joint angles again and their current time 
         ros::Time tnow = ros::Time::now();
+        
+        // Print commanded joint angles again and their current time
         ROS_INFO_ONCE("Commanded Joint Angle:\
               \n------------------------------\n<%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f> at time: %f\n------------------------------",
              qgoal_.command[0],qgoal_.command[1],qgoal_.command[2],
              qgoal_.command[3],qgoal_.command[4],qgoal_.command[5],
              qgoal_.command[6],(tnow-t0).toSec());
-        
+
         joint_cmd_pub_.publish(qgoal_);
-        isFinished = isMoveFinish(cont);
+        isFinished = isMoveFinish(cont);       
         
         // Control the Position Loop Rate
         pos_rate.sleep();
@@ -1096,7 +1097,7 @@ namespace force_controller
     ROS_WARN("The current joint position error is: %f, %f, %f, %f, %f, %f, %f", 
              qe_[0],qe_[1],qe_[2],qe_[3],qe_[4],qe_[5],qe_[6]);
 
-    ROS_INFO("\n---------------------------------------------\nFinished Moving the %s arm\n---------------------------------------------\n", side_.c_str());
+   ROS_INFO("\n---------------------------------------------\nFinished Moving the %s arm\n---------------------------------------------\n", side_.c_str());
     return isFinished;
   }
 

@@ -80,7 +80,7 @@ add_dependencies     (force_contrl_pubsub %{PROJECT_NAME}_gencfg)    # Builds dy
 target_link_libraries(force_contrl_pubsub ${catkin_LIBRARIES} mykinematics) # lins kin lib
 
 # 2b. Force Controller Set Point Publisher
-add_executable       (setPoint_pub src/setPoint_publisher.cpp)
+add_executable       (setPoint_pub src/setPoint/setPoint_publisher.cpp)
 target_link_libraries(setPoint_pub ${catkin_LIBRARIES})
 add_dependencies     (setPoint_pub %{PROJECT_NAME}_generate_message_cpp)
 
