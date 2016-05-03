@@ -26,4 +26,4 @@ ros-indigo-simple-grasping ros-indigo-orocos-kdl \
 ros-indigo-orocos-kinematics-dynamics \
 ros-indigo-orocos-toolchain ros-indigo-python-orocos-kdl \
 ros-indigo-ar-sys ros-indigo-ar-track-alvar ros-indigo-ar-track-alvar-msgs \
-liblapack-dev
+liblapack-dev ros-indigo-pr2-controller*
