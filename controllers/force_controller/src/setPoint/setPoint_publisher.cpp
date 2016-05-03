@@ -2,7 +2,7 @@
 #include <ros/ros.h>
 
 // ROS Msg Type for setPoint
-#include <force_controller/setPoint.h>
+#include <force_controller/force_contr_pubsub.h>
 
 // ROS Msg Type
 #include <geometry_msgs/Vector3.h>

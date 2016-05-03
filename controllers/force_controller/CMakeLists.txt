@@ -60,7 +60,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 add_library(mykinematics src/kinematics.cpp)
 target_link_libraries(mykinematics ${catkin_LIBRARIES})
 
-# 1a. Force Controller Service Executable (including a service server)
+# 1a. Force Controller Service Server Executable (including a service server)
 add_executable       (controller src/controller.cpp)
 target_link_libraries(controller ${catkin_LIBRARIES})
 add_dependencies     (controller %{PROJECT_NAME}_gencfg) # Builds dyn_rec headers before use.
