@@ -44,6 +44,7 @@ import baxter_interface
 from baxter_interface import CHECK_VERSION
 from baxter_pykdl import baxter_kinematics
 from rbx1_nav.transform_utils import quat_to_angle # Convert quaternions to euler
+import PyKDL
 
 #-----------------------------------------
 # Local Methods
@@ -129,7 +130,10 @@ def main():
             'w:  ',round(rPose['orientation'][3],2),
             )
         print ''
-        #print 'The RPY is: ', quat_to_angle(Quaternion(*orientation))
+        quat=rPose['orientation']
+        rot=PyKDL.Rotation.Quaternion(quat.x,quat.y,quat.z,quat.w).GetRPY()
+        print 'The RPY is: ', rot
+
 
         print 'Joint Angles from IKins...'
         rIKin=rKin.inverse_kinematics(rPose['position'],rPose['orientation']) 
