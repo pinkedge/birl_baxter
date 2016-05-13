@@ -24,7 +24,7 @@
 
   <!-- We resume the logic in empty_world.launch, changing the name of the world to be launched -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find baxter_gazebo)/worlds/$(arg gzname)"/>
+    <arg name="world_name" value="$(find birl_worlds)/worlds/$(arg gzname)"/>
     <arg name="debug" value="$(arg debug)" />
     <arg name="gui" value="$(arg gui)" />
     <arg name="paused" value="$(arg paused)"/>
@@ -41,20 +41,20 @@
   <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
    <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
 	args="-param robot_description -urdf -z 0.93 -model baxter
-	      -J baxter::right_s0 -0.272659
-	      -J baxter::right_s1 1.04701
-	      -J baxter::right_e0 -0.00123203
-	      -J baxter::right_e1 0.49262
-	      -J baxter::right_w0 -0.0806423
-	      -J baxter::right_w1 -0.0620532
-	      -J baxter::right_w2 0.0265941
-	      -J baxter::left_s0 0.192483
-	      -J baxter::left_s1 1.047
-	      -J baxter::left_e0 0.000806359
-	      -J baxter::left_e1 0.491094
-	      -J baxter::left_w0 -0.178079
-	      -J baxter::left_w1 -0.0610333
-	      -J baxter::left_w2 -0.0124707" />
+	      -J baxter::right_s0 0.07669903930664063
+	      -J baxter::right_s1 -0.9660244000671387
+	      -J baxter::right_e0 1.1481846184204103
+	      -J baxter::right_e1 1.9232284106140138
+	      -J baxter::right_w0 -0.6438884349792481
+	      -J baxter::right_w1 1.0074418812927246
+	      -J baxter::right_w2 0.483203947631836
+	      -J baxter::left_s0 -0.07823302009277344
+	      -J baxter::left_s1 -0.9675583808532715
+	      -J baxter::left_e0 -1.1504855895996096
+	      -J baxter::left_e1 1.9232284106140138
+	      -J baxter::left_w0 0.6477233869445801
+	      -J baxter::left_w1 1.007825376489258
+	      -J baxter::left_w2 -0.48282045243530275" />
 
   <!-- ros_control baxter launch file -->
   <include file="$(find baxter_sim_hardware)/launch/baxter_sdk_control.launch">
