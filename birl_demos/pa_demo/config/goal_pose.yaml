@@ -1,3 +1,4 @@
+reference_pose_flag: 1
 pose:
   position:
     x: 0.55686099076

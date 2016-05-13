@@ -12,8 +12,7 @@
   <!-- Record Topics to your ~ directory.-->
  <group if="$(arg record)">
    <node name="rosbag" pkg="rosbag" type="record"
-         args="-o '$(find pa_demo)/bags/pa_rightArm'
-               /cameras/right_hand_camera/image
+         args="-o '$(find pa_demo)/bags/pa_jtc_tracIK'
                /robot/joint_limits
                /robot/joint_names
                /robot/joint_states

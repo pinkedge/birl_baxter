@@ -31,7 +31,7 @@
 Baxter RSDK Joint Trajectory Action Client Example
 """
 #------------------------------------ Imports ------------------------------
-import pdb
+import ipdb
 
 import argparse
 import sys
@@ -56,7 +56,10 @@ import pa_openHand
 from birl_recorded_motions import paHome_rightArm as gh
 
 # Pose Stamped and Transformation
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import (
+    PoseStamped,
+    Quaternion,
+)
 
 from rbx1_nav.transform_utils import quat_to_angle
 
@@ -75,6 +78,7 @@ from baxter_core_msgs.msg import (
     JointCommand,
 )
 
+# Joint Trajectory Action Cient/Server Messages
 from control_msgs.msg import (
     FollowJointTrajectoryAction,
     FollowJointTrajectoryGoal,
@@ -84,9 +88,18 @@ from trajectory_msgs.msg import (
 ) 
 
 #------------------------------------ Design Parameters ------------------------------
-# Flags
-reference_pose_flag = 1 # Used to determine whether to used save data or not.
-approach_flag=2         # Used to determine whether to use move_to_joint_positions or joint_trajectory_action_client approach
+## Flags
+reference_pose_flag = 0 		# Used to determine whether to used saved joint angle data for the reference position (true) or not (false).
+
+#Inverse Kinematics Computation
+PY_KDL=0
+TRAC_IK=1
+kinematics_flag=PY_KDL 			# Used to determine wheter to use kdl or trac_ik for kinematics
+
+# Movement Algorithm
+MOVE_JNT_PSTN=0
+JOINT_ACT_CLN=1
+approach_flag=MOVE_JNT_PSTN         	# Used to determine whether to use move_to_joint_positions or joint_trajectory_action_client approach
 
 # Globals 
 _joints = JointCommand()
@@ -204,10 +217,13 @@ def main():
 
     #gripper = args.limb
 
-    print("Initializing node... ")
+    print("Initializing node pa_jtc_tracIK... ")
     rospy.init_node("pa_jtc_tracIK")
-    posePub=rospy.Publisher("pose",PoseStamped,queue_size=2)
-    rospy.Subscriber("joints",JointCommand,callback)
+
+    # Create publisher and Subscriber only if we use TRAC_IK
+    if kinematics_flag==TRAC_IK:
+        posePub=rospy.Publisher("pose",PoseStamped,queue_size=2)
+        rospy.Subscriber("joints",JointCommand,callback)
 
     # Create Kinematic Objects
     kin = baxter_kinematics(limb)
@@ -252,13 +268,13 @@ def main():
     startJoints_=dict(zip(jNamesl,startJoints))
 
     # Record reference position
-
     if not reference_pose_flag:
         rospy.loginfo('Now please move to the reference location.\n Open a new terminal and use keyboard teleoperation: roslaunch baxter_end_effector_control end_effector_controarm.launch keyboard:=true')
-        key=raw_input('When you have finished, pres any key. Tthen I will record this as the reference location, after that the assembly should run automatically: \n')
+        key=raw_input('When you have finished, pres any key. Then I will record this as the reference location, after that the assembly should run automatically: \n')
         referencePose=arm.endpoint_pose()
         reference_pose_flag=1
 
+    # Used saved pose from manual teleoperation
     else:
         x=    0.55686099076
         y=   -0.296882237511
@@ -271,57 +287,85 @@ def main():
         ref_q=baxter_interface.limb.Limb.Quaternion(qx,qy,qz,qw)
         referencePose={'position': ref_p, 'orientation': ref_q}
 
-    referenceJoints=calcInvKin(posePub,referencePose,limb)    
-    #referenceJoints=kin.inverse_kinematics(referencePose['position'],referencePose['orientation']).tolist()
-    referenceJoints_=dict( zip( list(referenceJoints.names),list(referenceJoints.command) ) )
+    # Compute the inverse kinematics and place the solution in a dictionary
+    if kinematics_flag==PY_KDL:
+        referenceJoints=kin.inverse_kinematics(referencePose['position'],referencePose['orientation']).tolist()
+        referenceJoints_=dict(zip(jNamesl,referenceJoints))
+        
+    else:
+        referenceJoints=calcInvKin(posePub,referencePose,limb)    
+        referenceJoints_=dict( zip( list(referenceJoints.names),list(referenceJoints.command) ) )
     
     #------------------ Compute Goal Position ---------------------------------------
     # Convert ortientation to RPY using PyKDL
     qref=referencePose['orientation']
     rot_mat=PyKDL.Rotation.Quaternion(qref.x,qref.y,qref.z,qref.w)
-    #rot=rot_mat.GetRPY()
-    # The idea is to set the roll to -pi and the pitch to 0. Keep the yaw
-    #rot[0]=-pi, rot[1]=0
-    # These are the approximate desired rpy angles and joint angles:
-    # RPY=[3.138346354829908, 0.04639302976741212, -3.0959751883876097]
-    #qs=0.252 -0.5472 0.5607 1.9938 -1.2682 0.4794 0.9518
-    rot_mat[0,0]=-1; rot_mat[1,0]=0; rot_mat[2,0]=0
-    rot_mat[0,1]=0;  rot_mat[1,1]=1; rot_mat[2,1]=0
-    q_goal=rot_mat.GetQuaternion()
-    
+    rot_goal=rot_mat.GetRPY()
+    rot_goal=list(rot_goal)
+    # Ideal values for a flat plane: set roll: -pi, pitch: 0. yaw: same. 
+
+    # (i) RPY Approach 
+    # Measured rpy values @ goal orientation
+    goal_RPY=[3.138346354829908, 0.04639302976741212, -3.0959751883876097]
+    # Measured joints: 
+    goal_q=(0.252,-0.5472,0.5607,1.9938,-1.2682,0.4794,0.9518)
+
+    rot_goal[0]=goal_RPY[0]; rot_goal[1]=goal_RPY[1]; 
+    # tf routine returns numpy array, needs to be converted to a list 
+    q_goal=tf.transformations.quaternion_from_euler(rot_goal[0],rot_goal[1],rot_goal[2],axes='sxyz').tolist()
+    # Need to convert to a Limb.Quaternion type
+    q_goal=baxter_interface.limb.Limb.Quaternion(q_goal[0],q_goal[1],q_goal[2],q_goal[3])
+
+    # (ii) Matrix alternative
+    #rot_mat[0,0]=-1; rot_mat[1,0]=0; rot_mat[2,0]=0
+    #rot_mat[0,1]=0;  rot_mat[1,1]=1; rot_mat[2,1]=0
+    #q_goal=rot_mat.GetQuaternion()
+
     # Create the dictionary
     goalPose=referencePose
     # Change the orientation
     goalPose['orientation']=q_goal
 
-    goalJoints=calcInvKin(posePub,goalPose,limb)    
-    #goalJoints=kin.inverse_kinematics(goalPose['position'],goalPose['orientation']).tolist()
-    goalJoints_=dict( zip( list(goalJoints.names),list(goalJoints.command) ) )
+    if kinematics_flag==PY_KDL:
+        goalJoints=kin.inverse_kinematics(goalPose['position'],goalPose['orientation']).tolist()
+        goalJoints_=dict(zip(jNamesl,goalJoints))
+    else:
+        goalJoints=calcInvKin(posePub,goalPose,limb)    
+        goalJoints_=dict( zip( list(goalJoints.names),list(goalJoints.command) ) )
 
     #----------------------------------- Approach # 1
-    # Add 5 cm to referene pose
-    approach1Pose=referencePose
-    _x=referencePose['position'][0];
-    _y=referencePose['position'][1];
-    _z=referencePose['position'][2]+0.05
+    # Add 5 cm to reference pose to set a point higher in the z+ direction
+    approach1Pose=copy(referencePose);
+    _x=copy(referencePose['position'][0])
+    _y=copy(referencePose['position'][1])
+    _z=copy(referencePose['position'][2])
+    _z=_z+0.05
     del_z=baxter_interface.limb.Limb.Point(_x,_y,_z)
     
-    approach1Pose['position']=del_z
-    approach1Joints=calcInvKin(posePub,approach1Pose,limb)    
-    #approach1Joints=kin.inverse_kinematics(approach1Pose['position'],approach1Pose['orientation']).tolist()
-    approach1Joints_=dict( zip( list(approach1Joints.names),list(approach1Joints.command) ) )
+    approach1Pose['position']=copy(del_z)
+    if kinematics_flag==PY_KDL:
+        approach1Joints=kin.inverse_kinematics(approach1Pose['position'],approach1Pose['orientation']).tolist()
+        approach1Joints_=dict(zip(jNamesl,approach1Joints))
+    else:
+        approach1Joints=calcInvKin(posePub,approach1Pose,limb)    
+        approach1Joints_=dict( zip( list(approach1Joints.names),list(approach1Joints.command) ) )
 
     #----------------------------------- Approach # 2
     # Add 1 cm to referene pose
-    approach2Pose=referencePose
-
-    _z=referencePose['position'][2]+0.01
+    approach2Pose=copy(referencePose);
+    _z=copy(referencePose['position'][2])
+    _z=_z+0.01
     del_z=baxter_interface.limb.Limb.Point(_x,_y,_z)
     
-    approach2Pose['position']=del_z
-    approach2Joints=calcInvKin(posePub,approach2Pose,limb)    
-    #approach2Joints=kin.inverse_kinematics(approach2Pose['position'],approach2Pose['orientation']).tolist()
-    approach2Joints_=dict( zip( list(approach2Joints.names),list(approach2Joints.command) ) )
+    approach2Pose['position']=copy(del_z)
+
+    if kinematics_flag==PY_KDL:
+        approach2Joints=kin.inverse_kinematics(approach2Pose['position'],approach2Pose['orientation']).tolist()
+        approach2Joints_=dict(zip(jNamesl,approach2Joints))
+
+    else:
+        approach2Joints=calcInvKin(posePub,approach2Pose,limb)    
+        approach2Joints_=dict( zip( list(approach2Joints.names),list(approach2Joints.command) ) )
 
 
     ############################## Moving to Points ####################################
@@ -348,9 +392,9 @@ def main():
     #5. Goal
     rospy.loginfo('005 Moving to goal position 5/7.')
     # Can move to the goal with two approaches: move_to_joint_positions or joint_trajectory_action_server
-    if approach_flag == 1:
+    if approach_flag==MOVE_JNT_PSTN:
         # (i) move_to_joint_positions
-        arm.move_to_joint_positions()
+        arm.move_to_joint_positions(goalJoints_)
 
         #6. Open the Gripper
         rospy.loginfo('006 Opening the gripper 6/7.')
@@ -361,16 +405,25 @@ def main():
         rospy.loginfo('007 Moving back to start position 7/7.')
         arm.move_to_joint_positions(startJoints_)
         rospy.sleep(1)
-        print("Exiting: Planner")
+        print("Exiting: State Machine")
     
     # (ii) joint_trajectory_action_server
     else:
         duration=2.0					# Set duration of motion
-        traj=Trajectory(limb) 				# Create a trajectory class object
-        traj.add_point( list(referenceJoints.command), 0.0)
-        traj.add_point( list(goalJoints.command),duration )	# Add list of joint angles
+        traj=Trajectory(limb) 				# Create a trajectory class object and initate the connection
+        rospy.on_shutdown(traj.stop)
+
+        if kinematics_flag==PY_KDL:
+            currAngles=arm.joint_angles()
+            traj.add_point( currAngles.values(), 0.0)
+            #traj.add_point( referenceJoints, 0.0)
+            traj.add_point( goalJoints,duration )	# Add list of joint angles
+        else:
+            traj.add_point( list(referenceJoints.command), 0.0)
+            traj.add_point( list(goalJoints.command),duration )	# Add list of joint angles
         traj.start()					# Call the server
         traj.wait(duration+1.0)					# If motion does not complete before timeout, throw exception.
+        print ("Exiting - Joint Trajctory Action Call")
         rospy.sleep(3)
 
         #6. Open the Gripper
@@ -380,12 +433,17 @@ def main():
 
         # Move Back
         rospy.loginfo('007 Moving back to start position 7/7.')
-        traj.stop()
-        traj.add_point( list(goalJoints.command),0.0 )	# Add list of joint angles        
-        traj.add_point( startJoints, duration)
+
+        if kinematics_flag==PY_KDL:
+            traj.add_point( goalJoints,      0.0 )	# Add list of joint angle 
+            traj.add_point( startJoints, duration)
+        else:
+            traj.add_point( list(goalJoints.command),0.0 )	# Add list of joint angle 
+            traj.add_point( startJoints, duration)
+
         traj.start()
-        traj.wait(duration+1.0)
-        print("Exiting: Planner")
+        traj.wait(duration+duration) # Needs a slow motion to avoid error
+        print("Exiting: State Machine")
 
 
 
