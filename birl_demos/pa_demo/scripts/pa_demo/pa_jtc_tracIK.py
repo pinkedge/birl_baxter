@@ -89,12 +89,13 @@ from trajectory_msgs.msg import (
 
 #------------------------------------ Design Parameters ------------------------------
 ## Flags
-reference_pose_flag = 0 		# Used to determine whether to used saved joint angle data for the reference position (true) or not (false).
+## Recommended (stable) parameters are: PY_KDL and MOVE_JNT_PSTN
+reference_pose_flag = 1			# Used to determine whether to used saved joint angle data for the reference position (true) or not (false).
 
 #Inverse Kinematics Computation
 PY_KDL=0
 TRAC_IK=1
-kinematics_flag=PY_KDL 			# Used to determine wheter to use kdl or trac_ik for kinematics
+kinematics_flag=PY_KDL			# Used to determine wheter to use kdl or trac_ik for kinematics
 
 # Movement Algorithm
 MOVE_JNT_PSTN=0
@@ -178,7 +179,7 @@ def calcInvKin(posePub,currPose,limb):
     tempPose.pose.orientation.z=currPose['orientation'][2]
     tempPose.pose.orientation.w=currPose['orientation'][3]
 
-    # Publish
+    # Publish the pose (
     posePub.publish(tempPose)
     posePub.publish(tempPose)
 
@@ -220,11 +221,6 @@ def main():
     print("Initializing node pa_jtc_tracIK... ")
     rospy.init_node("pa_jtc_tracIK")
 
-    # Create publisher and Subscriber only if we use TRAC_IK
-    if kinematics_flag==TRAC_IK:
-        posePub=rospy.Publisher("pose",PoseStamped,queue_size=2)
-        rospy.Subscriber("joints",JointCommand,callback)
-
     # Create Kinematic Objects
     kin = baxter_kinematics(limb)
 
@@ -234,6 +230,11 @@ def main():
     print("Enabling robot... ")
     rs.enable()
     print("Running. Ctrl-c to quit")
+
+    # Create publisher and Subscriber only if we use TRAC_IK
+    if kinematics_flag==TRAC_IK:
+        posePub=rospy.Publisher("pose",PoseStamped,queue_size=2)
+        rospy.Subscriber("joints",JointCommand,callback)
     
     # Create Joint Names List
     jNamesl=['right_s0','right_s1','right_e0','right_e1','right_w0','right_w1','right_w2']
@@ -270,31 +271,47 @@ def main():
     # Record reference position
     if not reference_pose_flag:
         rospy.loginfo('Now please move to the reference location.\n Open a new terminal and use keyboard teleoperation: roslaunch baxter_end_effector_control end_effector_controarm.launch keyboard:=true')
-        key=raw_input('When you have finished, pres any key. Then I will record this as the reference location, after that the assembly should run automatically: \n')
+        key=raw_input('When you have finished, press any key. Then I will record this as the reference location, after that the assembly should run automatically: \n')
         referencePose=arm.endpoint_pose()
         reference_pose_flag=1
 
+        # Compute the inverse kinematics and place the solution in a dictionary
+        if kinematics_flag==PY_KDL:
+            referenceJoints=kin.inverse_kinematics(referencePose['position'],referencePose['orientation']).tolist()
+            referenceJoints_=dict(zip(jNamesl,referenceJoints))
+        
+        else:
+            referenceJoints=calcInvKin(posePub,referencePose,limb)    
+            referenceJoints_=dict( zip( list(referenceJoints.names),list(referenceJoints.command) ) )
+
     # Used saved pose from manual teleoperation
     else:
-        x=    0.55686099076
-        y=   -0.296882237511
-        z=    -0.177124326921
-        qx=-0.00928787935556
-        qy= 0.989519808056
-        qz=-0.00726430566722
-        qw=-0.143914956223
+        rospy.loginfo('We have previously recorded the reference position... moving along...')
+        x=    0.528643474898
+        y=   -0.296407794333
+        z=   -0.171327059534
+        qx=  -0.0176152004645
+        qy=   0.978322793914
+        qz=   0.000815102559307
+        qw=  -0.206333592098
         ref_p=baxter_interface.limb.Limb.Point(x,y,z)
         ref_q=baxter_interface.limb.Limb.Quaternion(qx,qy,qz,qw)
         referencePose={'position': ref_p, 'orientation': ref_q}
-
-    # Compute the inverse kinematics and place the solution in a dictionary
-    if kinematics_flag==PY_KDL:
-        referenceJoints=kin.inverse_kinematics(referencePose['position'],referencePose['orientation']).tolist()
-        referenceJoints_=dict(zip(jNamesl,referenceJoints))
         
-    else:
-        referenceJoints=calcInvKin(posePub,referencePose,limb)    
-        referenceJoints_=dict( zip( list(referenceJoints.names),list(referenceJoints.command) ) )
+        # Also record the reference joints by running:
+        # rostopic echo -n 1 /robot/limb/right/gravity_compensation_torques 
+        referenceJoints=[0.1721893434401377, -0.20056798801601786, 0.85289331806429, 1.4350390270668045, -0.9579710020344409, 1.268218616384266, 0.4720825874717361]
+
+
+        # Compute the inverse kinematics and place the solution in a dictionary
+        if kinematics_flag==PY_KDL:
+            if not referenceJoints:
+                referenceJoints=kin.inverse_kinematics(referencePose['position'],referencePose['orientation']).tolist()
+            referenceJoints_=dict(zip(jNamesl,referenceJoints))
+        
+        else:
+            referenceJoints=calcInvKin(posePub,referencePose,limb)    
+            referenceJoints_=dict( zip( list(referenceJoints.names),list(referenceJoints.command) ) )
     
     #------------------ Compute Goal Position ---------------------------------------
     # Convert ortientation to RPY using PyKDL
@@ -322,7 +339,7 @@ def main():
     #q_goal=rot_mat.GetQuaternion()
 
     # Create the dictionary
-    goalPose=referencePose
+    goalPose=copy(referencePose)
     # Change the orientation
     goalPose['orientation']=q_goal
 
@@ -387,6 +404,7 @@ def main():
     #4. Reference 
     rospy.loginfo('004 Moving to reference position 4/7.')
     arm.move_to_joint_positions(referenceJoints_)
+    #set_joint_positions(referenceJoints_)
     rospy.sleep(3)
 
     #5. Goal
